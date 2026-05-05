@@ -1545,9 +1545,7 @@ const ERPLoader = (() => {
     async loadProduction() { return _mode === 'python' ? pythonFetch('/api/production') : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PRODUCTION); },
     async loadDispFms()    { return _mode === 'python' ? pythonFetch('/api/dispfms')    : []; },
     async loadChecklist()  {
-      return _mode === 'python' 
-        ? pythonFetch('/api/checklist')
-        : { tasks: [], logs: [] };  // In static mode, no data
+      return _mode === 'python' ? pythonFetch('/api/checklist') : { tasks: [], logs: [] };
     },
   };
 })();
@@ -2194,27 +2192,18 @@ function go(id, el, title) {
   document.querySelector('.main').scrollTop = 0;
   // Auto-load checklist on first visit
   if (id === 'checklist2' && _cl2Rows.length === 0) {
-    // Show skeleton loading state
     const tb = document.getElementById('cl2Tb');
-    if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--s400)">⟳ Loading tasks from Google Sheets…</td></tr>';
-    const lb = document.getElementById('cl2LogTb');
-    if (lb) lb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--s400)">⟳ Loading activity log…</td></tr>';
-    // Set metric placeholders
-    ['cl2-total','cl2-open','cl2-done','cl2-staff','cl2-depts','cl2-pct'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.textContent = '…';
-    });
+    if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--s400)">⟳ Loading…</td></tr>';
     ERPLoader.loadChecklist()
       .then(d => {
-        // API returns { ok, tasks, logs } — unwrap correctly
-        const payload = (d && d.tasks) ? d : { tasks: Array.isArray(d) ? d : [], logs: [] };
+        const payload = (d && d.tasks) ? d : { tasks: [], logs: [] };
         renderChecklist(payload);
-        showToast('✅ Task Checklist loaded — ' + (payload.tasks.length) + ' tasks', 'success');
+        if (payload.tasks.length) showToast('✅ Loaded ' + payload.tasks.length + ' tasks', 'success');
       })
       .catch(e => {
-        console.error('[Checklist] Load failed:', e);
+        console.error('[Checklist]', e);
         const tb2 = document.getElementById('cl2Tb');
-        if (tb2) tb2.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--r)">⚠ Failed to load: ' + e.message + ' — Check console & API key</td></tr>';
-        showToast('⚠ Checklist load failed: ' + e.message, 'error');
+        if (tb2) tb2.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--r800)">⚠ ' + (e.message || 'Failed to load') + '</td></tr>';
       });
   }
 }
