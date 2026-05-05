@@ -124,7 +124,6 @@ tr:hover td{background:var(--s50)}
 /* SCREENS */
 .screen{display:none}
 .screen.active{display:flex;flex-direction:column;gap:12px}
-#sc-delegation.active{gap:0;padding:0;height:100%;overflow:hidden}
 
 /* SYNC BAR */
 .sync-bar{padding:6px 14px;background:linear-gradient(90deg,var(--gl),#fff);border-bottom:1px solid var(--s200);font-size:10px;color:var(--gd);font-weight:600;display:flex;align-items:center;gap:8px}
@@ -317,9 +316,10 @@ tr.o2d-overdue:hover td{background:#fff5d6}
       <span class="nbadge gr">1405</span>
     </div>
     <div class="ni" onclick="go('dispfms',this,'Dispatch FMS')">
-  🚚
-  Dispatch FMS
-</div>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4h14M1 8h10"/><path d="M12 10l3 2-3 2"/></svg>
+      Dispatch FMS
+      <span class="nbadge am" id="dfms-nav-badge">0</span>
+    </div>
   </div>
   <div class="sb-sec">
     <div class="sb-lbl">Reports</div>
@@ -344,6 +344,11 @@ tr.o2d-overdue:hover td{background:#fff5d6}
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14s1-4 6-4 6 4 6 4"/></svg>
       Delegation
       <span class="nbadge pu">NEW</span>
+    </div>
+    <div class="ni" onclick="go('checklist2',this,'Task Checklist')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5l2 2 4-4M5 10l2 2 4-4"/></svg>
+      Task Checklist
+      <span class="nbadge gr" id="checklist-open-badge">—</span>
     </div>
   </div>
 </div>
@@ -1036,8 +1041,7 @@ tr.o2d-overdue:hover td{background:#fff5d6}
       </table></div>
     </div>
   </div>
-
-  <!-- DISPATCH FMS SCREEN FOLLOWS -->
+<!-- ══════════ DISPATCH FMS ══════════ -->
 <div class="screen" id="sc-dispfms">
   <div class="sync-bar fms-sync">🚚 Dispatch FMS — Hold &amp; Done tracking · sourced from "Dispatch" sheet <button class="btn-sm btno" style="margin-left:10px" onclick="erpRefresh('dispfms')">⟳ Refresh</button></div>
   <div class="ph">
@@ -1091,7 +1095,6 @@ tr.o2d-overdue:hover td{background:#fff5d6}
     </div>
   </div>
 </div>
-</div>
 
 
 
@@ -1115,6 +1118,84 @@ tr.o2d-overdue:hover td{background:#fff5d6}
         <tbody id="disp-it-tbody"></tbody>
       </table></div>
     </div>
+  </div>
+</div>
+
+
+<!-- ══════════ TASK CHECKLIST ══════════ -->
+<div class="screen" id="sc-checklist2">
+  <div class="sync-bar fms-sync">✅ Task Checklist — fetched live from "new checklist" Google Sheet (public CSV) · auto-refresh on visit
+    <button class="btn-sm btno" style="margin-left:10px" onclick="erpRefresh('checklist2')">⟳ Refresh</button>
+  </div>
+  <div class="ph">
+    <div>
+      <div class="pt">Task Checklist</div>
+      <div class="ps">All staff task tracking — Daily, Weekly, Monthly · Auto-synced from Google Sheet</div>
+    </div>
+    <div class="ha">
+      <input class="si" id="clQ" placeholder="Search name, task, department…" oninput="clFilt()">
+      <button class="fb act" id="clf-all"    onclick="clFilter('all')">All</button>
+      <button class="fb"     id="clf-open"   onclick="clFilter('open')">🔴 Open</button>
+      <button class="fb"     id="clf-done"   onclick="clFilter('done')">✅ Done</button>
+      <button class="fb"     id="clf-today"  onclick="clFilter('today')">📅 Today</button>
+    </div>
+  </div>
+
+  <!-- Summary metrics -->
+  <div class="mrow">
+    <div class="mc g"><div class="ml">Total Tasks</div><div class="mv" id="cl2-total">—</div><div class="ms">all entries</div></div>
+    <div class="mc r"><div class="ml">Open</div><div class="mv" id="cl2-open">—</div><div class="ms">pending</div></div>
+    <div class="mc g"><div class="ml">Done</div><div class="mv" id="cl2-done">—</div><div class="ms">completed</div></div>
+    <div class="mc b"><div class="ml">Staff</div><div class="mv" id="cl2-staff">—</div><div class="ms">members</div></div>
+    <div class="mc a"><div class="ml">Departments</div><div class="mv" id="cl2-depts">—</div><div class="ms">teams</div></div>
+    <div class="mc n"><div class="ml">Completion</div><div class="mv" id="cl2-pct">—</div><div class="ms">rate</div></div>
+  </div>
+
+  <!-- Dept tabs -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap" id="cl2-dept-tabs"></div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="ch">
+      <div class="ct">Task Register</div>
+      <span class="ds-badge">📋 new checklist · Sheet1</span>
+    </div>
+    <div class="tw"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Freq</th>
+          <th>Task</th>
+          <th>Planned</th>
+          <th>Done On</th>
+          <th>Status</th>
+          <th>Remark</th>
+        </tr>
+      </thead>
+      <tbody id="cl2Tb"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Activity Log -->
+  <div class="card">
+    <div class="ch">
+      <div class="ct">Activity Log</div>
+      <span class="ds-badge">📊 Sheet2 · Recent submissions</span>
+    </div>
+    <div class="tw"><table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Task</th>
+          <th>Planned</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="cl2LogTb"></tbody>
+    </table></div>
   </div>
 </div>
 
@@ -1272,19 +1353,25 @@ tr.o2d-overdue:hover td{background:#fff5d6}
 </div>
 
 <!-- ══════════ DELEGATION ══════════ -->
-<div class="screen" id="sc-delegation" style="height:100%;padding:0;gap:0">
-  <!-- Full-height iframe — fills the entire main content area -->
-  <iframe id="delg-frame"
-    src="https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec"
-    style="flex:1;width:100%;height:100%;border:none;min-height:calc(100vh - var(--topbar))"
-    title="Delegation System"
-    allowfullscreen></iframe>
-  <!-- Thin footer bar with controls -->
-  <div style="display:flex;align-items:center;gap:8px;padding:5px 14px;background:#fff;border-top:1px solid var(--s200);flex-shrink:0;font-size:11px;color:var(--s400)">
-    👤 Delegation — Takkar Polychem Internal System · Google Apps Script &nbsp;
-    <button class="btn-sm btno" style="margin-left:auto" onclick="window.open('https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec','_blank')">🔗 Open in New Tab</button>
-    <button class="btn-sm btno" onclick="document.getElementById('delg-frame').src=document.getElementById('delg-frame').src">⟳ Reload</button>
+<div class="screen" id="sc-delegation">
+  <div class="sync-bar" style="background:linear-gradient(90deg,var(--pl),#fff);color:var(--p)">👤 Delegation — Takkar Polychem Internal System · Google Apps Script</div>
+  <div class="ph">
+    <div><div class="pt">Delegation</div><div class="ps">Internal delegation management · takkarpolychem.com · Google Apps Script</div></div>
+    <div class="ha">
+      <button class="btn" style="background:var(--p);color:#fff;border-color:var(--p)" onclick="window.open('https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec','_blank')">🔗 Open in New Tab</button>
+      <button class="btn btno" onclick="document.getElementById('delg-frame').src=document.getElementById('delg-frame').src">⟳ Reload</button>
+    </div>
   </div>
+  <div class="card" style="flex:1">
+    <div class="ch"><div class="ct">Delegation System</div><span class="ds-badge" style="background:var(--pl);color:var(--p)">👤 Apps Script</span></div>
+    <div style="height:600px;padding:0">
+      <iframe id="delg-frame"
+        src="https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec"
+        style="width:100%;height:100%;border:none;border-radius:0 0 10px 10px"
+        title="Delegation System"></iframe>
+    </div>
+  </div>
+  <p style="font-size:11px;color:var(--s400);text-align:center;padding:6px">If the system requires login, <a href="https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec" target="_blank" style="color:var(--p);font-weight:600">click here to open directly ↗</a></p>
 </div>
 
 </div><!-- /main -->
@@ -1340,10 +1427,7 @@ tr.o2d-overdue:hover td{background:#fff5d6}
 
 const ERP_CONFIG = {
   // ── Python backend (MODE A) ──────────────────────────────────────────────
-  // On Vercel the API is served from the same origin — use a relative base.
-  // For local dev (node api/index.js on port 5000) set PYTHON_API_BASE in your
-  // .env or override here to 'http://localhost:5000'.
-  PYTHON_API_BASE: '',                        // '' = same origin (Vercel) | 'http://localhost:5000' for local
+  PYTHON_API_BASE: window.location.origin,   // URL of tppl_sheets_fetcher.py
 
   // ── Direct Sheets API (MODE B) ──────────────────────────────────────────
   SHEETS_API_KEY: '',                         // Your Google Sheets API key (read-only)
@@ -1358,6 +1442,11 @@ const ERP_CONFIG = {
   TAB_PRODUCTION: 'Production Requirement',
   TAB_O2D:        'Sheet1',                   // O2D source tab
 
+  // ── Checklist Sheet (public CSV — no auth required) ──────────────────────
+  CHECKLIST_SHEET_ID:     '1mvd94ei64eITswOua4b-d_o7IhnRs_lKxLJgRF6H7DE',
+  CHECKLIST_GID_TASKS:    0,           // Sheet1 — task definitions
+  CHECKLIST_GID_LOGS:     870761503,   // Sheet2 — activity log
+
   // ── Write-back (Apps Script web app) ────────────────────────────────────
   APPS_SCRIPT_URL: 'https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec',
 
@@ -1369,11 +1458,73 @@ const ERP_CONFIG = {
   O2D_DONE_SHEET_ID:    '1T0pj7dWZ8ixYaeLORVKtmO55TYCDBjFpNSp4KuJg9o4',
 
   O2D_PLAN_DAYS: 3,
-
-  // ── Dispatch FMS write-back sheet IDs ────────────────────────────────────
-  DISPATCH_FMS_HOLD_SHEET_ID: '14tSrq3GAFtY144Wp9DbW3Q6_isIIr2u2PIJM5O7b478',
-  DISPATCH_FMS_DONE_SHEET_ID: '1zhZQeU4nr2P8JUFJJK1a9gs1li34xZT-zpzAR9KEgoQ',
 };
+
+
+// ─── PUBLIC CSV HELPERS (checklist — no auth required) ──────────────────────
+function parsePublicCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  function parseRow(line) {
+    const cells = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cells.push(cur.trim());
+    return cells;
+  }
+  const headers = parseRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const cells = parseRow(line);
+    return Object.fromEntries(headers.map((h, i) => [h.trim(), (cells[i] || '').trim()]));
+  });
+}
+
+async function fetchPublicSheetCsv(spreadsheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+  const res = await fetch(url, { redirect: 'follow' });
+  if (!res.ok) throw new Error(`CSV fetch error ${res.status} for gid=${gid}`);
+  return parsePublicCsv(await res.text());
+}
+
+async function fetchChecklistDirect() {
+  const [rawTasks, rawLogs] = await Promise.all([
+    fetchPublicSheetCsv(ERP_CONFIG.CHECKLIST_SHEET_ID, ERP_CONFIG.CHECKLIST_GID_TASKS),
+    fetchPublicSheetCsv(ERP_CONFIG.CHECKLIST_SHEET_ID, ERP_CONFIG.CHECKLIST_GID_LOGS),
+  ]);
+  const tasks = rawTasks.map(r => ({
+    name:    (r['NAME']       || '').trim(),
+    email:   (r['Email']      || '').trim(),
+    dept:    (r['Department'] || '').trim(),
+    task_id: (r['Task ID']    || '').trim(),
+    freq:    (r['Freq']       || '').trim(),
+    task:    (r['Task']       || '').trim(),
+    planned: (r['Planned']    || '').trim(),
+    done_on: (r['Done On']    || '').trim(),
+    status:  (r['Status']     || '').trim().toUpperCase(),
+    remark:  (r['Remark']     || '').trim(),
+  }));
+  const logs = rawLogs.map(r => ({
+    timestamp:   (r['Timestamp']           || '').trim(),
+    uid:         (r['UID']                 || '').trim(),
+    name:        (r['Doer Name']           || '').trim(),
+    email:       (r['Email']               || '').trim(),
+    dept:        (r['Department']          || '').trim(),
+    task_id:     (r['Task ID']             || '').trim(),
+    freq:        (r['Freq']                || '').trim(),
+    task:        (r['Task']                || '').trim(),
+    planned:     (r['Planned']             || '').trim(),
+    status:      (r['Status']              || '').trim().toUpperCase(),
+    mails_sent:  (r['No of Mail Send']     || '').trim(),
+    calls_today: (r['No of Calling Today'] || '').trim(),
+    summary:     (r['Summary']             || '').trim(),
+  }));
+  return { tasks, logs };
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── DYNAMIC DATA LOADER ────────────────────────────────────────────────────────
 const ERPLoader = (() => {
@@ -1383,8 +1534,8 @@ const ERPLoader = (() => {
   async function detectMode() {
     // Try Python backend first
     try {
-      const res = await fetch(ERP_CONFIG.PYTHON_API_BASE + '/api/health', { signal: AbortSignal.timeout(2000) });
-      if (res.ok) { _mode = 'python'; return 'python'; }
+      const res = await fetch(ERP_CONFIG.PYTHON_API_BASE + '/api/health', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) { _mode = 'python'; console.log('[ERP] Mode: python (API reachable)'); return 'python'; }
     } catch {}
 
     // Try direct Sheets API
@@ -1394,6 +1545,7 @@ const ERPLoader = (() => {
     }
 
     _mode = 'static';
+    console.warn('[ERP] Mode: static — API not reachable. All data will be from embedded HTML.');
     return 'static';
   }
 
@@ -1412,7 +1564,9 @@ const ERPLoader = (() => {
   async function pythonFetch(endpoint) {
     const res = await fetch(ERP_CONFIG.PYTHON_API_BASE + endpoint);
     if (!res.ok) throw new Error(`Python API error ${res.status}`);
-    return res.json();
+    const json = await res.json();
+    if (endpoint === '/api/erp-data') console.log('[ERP] /api/erp-data keys:', Object.keys(json), 'dispfms count:', json.dispfms?.length);
+    return json;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -1442,7 +1596,7 @@ const ERPLoader = (() => {
             sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_STOCK),
             sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PRODUCTION),
           ]);
-          applyAllData({ orders, pending, dispatch, stock, production, fms: [], o2d: [], metrics: {} });
+          applyAllData({ orders, pending, dispatch, stock, production, fms: [], o2d: [], dispfms: [], metrics: {} });
           return { orders, pending, dispatch, stock, production };
         } catch(e) { console.warn('Sheets API failed:', e); }
       }
@@ -1453,14 +1607,25 @@ const ERPLoader = (() => {
     },
 
     // Expose individual loaders for manual refresh buttons
-    async loadOrders()     { return mode === 'python' ? pythonFetch('/api/orders')     : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_ORDERS); },
-    async loadPending()    { return mode === 'python' ? pythonFetch('/api/pending')    : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PENDING); },
-    async loadFMS()        { return mode === 'python' ? pythonFetch('/api/fms')        : []; },
-    async loadO2D()        { return mode === 'python' ? pythonFetch('/api/o2d')        : sheetsRange(ERP_CONFIG.O2D_SOURCE_SHEET_ID, ERP_CONFIG.TAB_O2D); },
-    async loadDispatch()   { return mode === 'python' ? pythonFetch('/api/dispatch')   : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_DISPATCH); },
-    async loadDispFms()    { return mode === 'python' ? pythonFetch('/api/dispfms')    : []; },  // Dispatch FMS only via backend
-    async loadStock()      { return mode === 'python' ? pythonFetch('/api/stock')      : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_STOCK); },
-    async loadProduction() { return mode === 'python' ? pythonFetch('/api/production') : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PRODUCTION); },
+    async loadOrders()     { return _mode === 'python' ? pythonFetch('/api/orders')     : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_ORDERS); },
+    async loadPending()    { return _mode === 'python' ? pythonFetch('/api/pending')    : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PENDING); },
+    async loadFMS()        { return _mode === 'python' ? pythonFetch('/api/fms')        : []; },
+    async loadO2D()        { return _mode === 'python' ? pythonFetch('/api/o2d')        : sheetsRange(ERP_CONFIG.O2D_SOURCE_SHEET_ID, ERP_CONFIG.TAB_O2D); },
+    async loadDispatch()   { return _mode === 'python' ? pythonFetch('/api/dispatch')   : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_DISPATCH); },
+    async loadStock()      { return _mode === 'python' ? pythonFetch('/api/stock')      : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_STOCK); },
+    async loadProduction() { return _mode === 'python' ? pythonFetch('/api/production') : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PRODUCTION); },
+    async loadDispFms()    { return _mode === 'python' ? pythonFetch('/api/dispfms')    : []; },
+    async loadChecklist()  {
+      // Priority 1: Python backend API
+      if (_mode === 'python') {
+        try { return await pythonFetch('/api/checklist'); } catch(e) {
+          console.warn('[Checklist] Python API failed, falling back to direct CSV:', e.message);
+        }
+      }
+      // Priority 2: Direct public CSV fetch (works in all modes — sheet must be publicly shared)
+      console.log('[Checklist] Fetching directly from Google Sheets public CSV...');
+      return await fetchChecklistDirect();
+    },
   };
 })();
 
@@ -1469,12 +1634,15 @@ function applyAllData(data) {
   if (data.orders     && data.orders.length)     renderOrdersTable(data.orders);
   if (data.pending    && data.pending.length)     renderPendingTable(data.pending);
   if (data.dispatch   && data.dispatch.length)    renderDispatchTable(data.dispatch);
-  if (data.dispfms    && data.dispfms.length)     renderDispFmsTable(data.dispfms);   // FIX: was never wired up
   if (data.fms        && data.fms.length)         renderFMSTable(data.fms);
   if (data.o2d        && data.o2d.length)         { o2dAllRows = data.o2d; o2dApplyFilter(); }
   if (data.metrics)                               applyMetrics(data.metrics);
   if (data.production && data.production.length)  renderProductionTable(data.production);
   if (data.stock      && data.stock.length)       renderStockTable(data.stock);
+  if (data.production && data.production.length)  renderProductionTable(data.production);
+  console.log('[ERP] data.dispfms:', data.dispfms ? data.dispfms.length : 'missing');
+  if (data.dispfms   && data.dispfms.length)     renderDispFmsTable(data.dispfms);
+
 }
 
 function applyMetrics(m) {
@@ -1596,37 +1764,20 @@ let _dfmsRows = [];        // raw parsed rows for filtering
 let _dfmsHoldIdx = null;   // which row is being held right now
 
 function renderDispFmsTable(rawRows) {
-  if (!rawRows || rawRows.length === 0) return;
+  console.log('[DispFMS] renderDispFmsTable called with', rawRows ? rawRows.length : 'null', 'rows', rawRows && rawRows[0]);
+  if (!rawRows || !rawRows.length) { console.warn('[DispFMS] No rows to render'); return; }
 
-  // Accept both:
-  //   • plain object array from the API (each element is already a keyed record)
-  //   • legacy raw array-of-arrays where row[0] is a header row
-  let rows;
-  if (typeof rawRows[0] === 'object' && !Array.isArray(rawRows[0])) {
-    // API mode — objects keyed by column name (FIX: was always skipping row[0])
-    rows = rawRows.map((r, i) => ({
-      i,
-      date:    String(r['Date'] || r['Timestamp'] || ''),
-      party:   String(r['Party Name'] || r['Client Name'] || ''),
-      invoice: String(r['Invoice No'] || r['Invoice Number'] || ''),
-      item:    String(r['Item Name'] || r['Item Description'] || r['Product'] || ''),
-      qty:     Number(r['Qty'] || 0),
-      rate:    Number(r['Rate'] || 0),
-      amt:     Number(r['Amount'] || 0),
-    }));
-  } else {
-    // Legacy raw array-of-arrays — skip header row
-    rows = rawRows.slice(1).map((r, i) => ({
-      i,
-      date:    String(r['Date']             || r[0] || ''),
-      party:   String(r['Party Name']       || r[1] || ''),
-      invoice: String(r['Invoice No']       || r[2] || ''),
-      item:    String(r['Item Description'] || r[3] || ''),
-      qty:     Number(r['Qty']              || r[4] || 0),
-      rate:    Number(r['Rate']             || r[5] || 0),
-      amt:     Number(r['Amount']           || r[6] || 0),
-    }));
-  }
+  // API returns array-of-objects from fetchDispatchFms()
+  const rows = rawRows.map((r, i) => {
+    const party   = String(r['Party Name']       || r['Client Name']       || '');
+    const invoice = String(r['Invoice No']        || r['Invoice Number']    || '');
+    const item    = String(r['Item Name']         || r['Item Description']  || r['Product'] || '');
+    const qty     = Number(r['Qty'] || 0);
+    const rate    = Number(r['Rate'] || 0);
+    const amt     = Number(r['Amount'] || 0);
+    const date    = String(r['Date'] || r['Timestamp'] || '');
+    return { i, date, party, invoice, item, qty, rate, amt };
+  });
 
   _dfmsRows = rows;
 
@@ -1708,11 +1859,11 @@ function dfmsConfirmHold() {
   _dfmsUpdateCounts();
   showToast('⏸ Order put on hold', 'info');
 
-  // Write to backend/Sheets
+  // Write to Python/Sheets if available
   const r = _dfmsRows.find(x => x.i === idx);
   if (r) {
     appendToSheet(
-      ERP_CONFIG.DISPATCH_FMS_HOLD_SHEET_ID,
+      typeof DISPATCH_FMS_HOLD_SHEET_ID !== 'undefined' ? DISPATCH_FMS_HOLD_SHEET_ID : '',
       'Sheet1',
       [new Date().toLocaleString('en-IN'), r.date, r.party, r.invoice, r.item, r.qty, 'HOLD', remark]
     ).catch(() => {});
@@ -1732,11 +1883,11 @@ function dfmsMarkDone(idx) {
   _dfmsUpdateCounts();
   showToast('✅ Marked as done', 'success');
 
-  // Write to backend/Sheets
+  // Write to Python/Sheets if available
   const r = _dfmsRows.find(x => x.i === idx);
   if (r) {
     appendToSheet(
-      ERP_CONFIG.DISPATCH_FMS_DONE_SHEET_ID,
+      typeof DISPATCH_FMS_DONE_SHEET_ID !== 'undefined' ? DISPATCH_FMS_DONE_SHEET_ID : DONE_SHEET_ID,
       'Sheet1',
       [new Date().toLocaleString('en-IN'), r.date, r.party, r.invoice, r.item, r.qty, 'DONE']
     ).catch(() => {});
@@ -1837,12 +1988,10 @@ window.appendToSheet = async function(sheetId, sheetName, rowData) {
   if (ERPLoader.mode() === 'python') {
     // Map sheetId → proxy endpoint
     const endpointMap = {
-      [ERP_CONFIG.CALL_LATER_SHEET_ID]:         '/api/append/call-later',
-      [ERP_CONFIG.DONE_SHEET_ID]:               '/api/append/done',
-      [ERP_CONFIG.O2D_CALL_LATER_ID]:           '/api/append/o2d-call-later',
-      [ERP_CONFIG.O2D_DONE_SHEET_ID]:           '/api/append/o2d-done',
-      [ERP_CONFIG.DISPATCH_FMS_HOLD_SHEET_ID]:  '/api/append/dispatch-hold',
-      [ERP_CONFIG.DISPATCH_FMS_DONE_SHEET_ID]:  '/api/append/dispatch-done',
+      [ERP_CONFIG.CALL_LATER_SHEET_ID]: '/api/append/call-later',
+      [ERP_CONFIG.DONE_SHEET_ID]:       '/api/append/done',
+      [ERP_CONFIG.O2D_CALL_LATER_ID]:   '/api/append/o2d-call-later',
+      [ERP_CONFIG.O2D_DONE_SHEET_ID]:   '/api/append/o2d-done',
     };
     const ep = endpointMap[sheetId];
     if (ep) {
@@ -1899,8 +2048,8 @@ window.erpRefresh = async function(section) {
       case 'fms':      renderFMSTable(await ERPLoader.loadFMS());          break;
       case 'o2d':      const rows = await ERPLoader.loadO2D(); o2dAllRows = rows; o2dApplyFilter(); break;
       case 'dispatch': renderDispatchTable(await ERPLoader.loadDispatch()); break;
-      case 'dispfms':  renderDispFmsTable(await ERPLoader.loadDispFms());   break;
-      
+      case 'dispfms':    renderDispFmsTable(await ERPLoader.loadDispFms());   break;
+      case 'checklist2': { const d = await ERPLoader.loadChecklist(); renderChecklist(d.tasks ? d : { tasks: d, logs: [] }); break; }
       default:         await ERPLoader.loadAll();
     }
     showToast('✅ Data refreshed from Google Sheets', 'success');
@@ -1909,6 +2058,177 @@ window.erpRefresh = async function(section) {
   }
 };
 // ── END DYNAMIC LOADER ─────────────────────────────────────────────────────────
+
+
+// ═══════════════════════════════════════════════════════════════
+// TASK CHECKLIST MODULE
+// ═══════════════════════════════════════════════════════════════
+
+let _cl2Rows = [];       // all task rows
+let _cl2Logs = [];       // activity log rows
+let _cl2Filter = 'all';  // current status filter
+let _cl2Dept   = 'all';  // current dept filter
+
+function renderChecklist(data) {
+  if (!data) return;
+  // Handle both { tasks, logs } object and raw array
+  if (Array.isArray(data)) { _cl2Rows = data; _cl2Logs = []; }
+  else { _cl2Rows = data.tasks || []; _cl2Logs = data.logs || []; }
+
+  // Metrics
+  const total  = _cl2Rows.length;
+  const done   = _cl2Rows.filter(r => r.status === 'DONE').length;
+  const open   = _cl2Rows.filter(r => r.status === 'OPEN' || !r.status || r.status === '').length;
+  const staff  = new Set(_cl2Rows.map(r => r.email).filter(Boolean)).size;
+  const depts  = new Set(_cl2Rows.map(r => r.dept).filter(Boolean));
+  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('cl2-total', total.toLocaleString('en-IN'));
+  set('cl2-open',  open.toLocaleString('en-IN'));
+  set('cl2-done',  done.toLocaleString('en-IN'));
+  set('cl2-staff', staff);
+  set('cl2-depts', depts.size);
+  set('cl2-pct',   pct + '%');
+
+  // Update sidebar badge
+  const badge = document.getElementById('checklist-open-badge');
+  if (badge) badge.textContent = open || '0';
+
+  // Build dept tabs
+  const tabsEl = document.getElementById('cl2-dept-tabs');
+  if (tabsEl) {
+    const allDepts = ['all', ...Array.from(depts).sort()];
+    tabsEl.innerHTML = allDepts.map(d =>
+      `<button class="fb ${_cl2Dept === d ? 'act' : ''}" onclick="clDept('${d}')">${d === 'all' ? '🏢 All Depts' : d}</button>`
+    ).join('');
+  }
+
+  _cl2ApplyFilters();
+  _cl2RenderLogs();
+}
+
+function _cl2ApplyFilters() {
+  const q    = (document.getElementById('clQ')?.value || '').toLowerCase();
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'numeric', year: 'numeric' });
+
+  let rows = _cl2Rows;
+
+  // Dept filter
+  if (_cl2Dept !== 'all') rows = rows.filter(r => r.dept === _cl2Dept);
+
+  // Status filter
+  if (_cl2Filter === 'done')  rows = rows.filter(r => r.status === 'DONE');
+  if (_cl2Filter === 'open')  rows = rows.filter(r => r.status === 'OPEN' || !r.status || r.status === '');
+  if (_cl2Filter === 'today') rows = rows.filter(r => {
+    const pd = r.planned;
+    // match today's date — handle M/D/YYYY format from sheet
+    if (!pd) return false;
+    try {
+      const d = new Date(pd);
+      return d.toDateString() === new Date().toDateString();
+    } catch { return false; }
+  });
+
+  // Search filter
+  if (q) rows = rows.filter(r =>
+    (r.name + r.task + r.dept + r.email + r.freq + r.remark).toLowerCase().includes(q)
+  );
+
+  const tbody = document.getElementById('cl2Tb');
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--s400);padding:20px">No tasks match filters</td></tr>';
+    return;
+  }
+
+  const freqLabel = { D: '📅 Daily', W: '📆 Weekly', M: '📅 Monthly' };
+  const today2 = new Date().toDateString();
+
+  tbody.innerHTML = rows.map(r => {
+    const isDone  = r.status === 'DONE';
+    const isOpen  = !isDone;
+    // Check if overdue
+    let isOverdue = false;
+    if (isOpen && r.planned) {
+      try { isOverdue = new Date(r.planned) < new Date() && new Date(r.planned).toDateString() !== today2; } catch {}
+    }
+
+    const statusPill = isDone
+      ? '<span class="pill pg">✅ Done</span>'
+      : isOverdue
+      ? '<span class="pill pr">⚠ Overdue</span>'
+      : '<span class="pill pa">🔴 Open</span>';
+
+    const rowStyle = isDone ? 'opacity:.65' : isOverdue ? 'background:#fff5f5' : '';
+
+    return `<tr style="${rowStyle}">
+      <td style="font-weight:600;white-space:nowrap">${escHtml(r.name)}</td>
+      <td><span class="pill pb" style="font-size:9px">${escHtml(r.dept)}</span></td>
+      <td style="text-align:center"><span class="pill px" style="font-size:9px">${freqLabel[r.freq] || r.freq}</span></td>
+      <td title="${escHtml(r.task)}" style="max-width:260px">${escHtml(r.task.substring(0, 55))}${r.task.length > 55 ? '…' : ''}</td>
+      <td class="mono" style="white-space:nowrap">${escHtml(r.planned)}</td>
+      <td class="mono" style="white-space:nowrap">${escHtml(r.done_on)}</td>
+      <td>${statusPill}</td>
+      <td style="font-size:10px;color:var(--s400)">${escHtml(r.remark)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _cl2RenderLogs() {
+  const tbody = document.getElementById('cl2LogTb');
+  if (!tbody) return;
+  // Show last 100 logs, newest first (dedup by uid+task_id)
+  const seen = new Set();
+  const unique = [];
+  for (const r of [..._cl2Logs].reverse()) {
+    const key = r.uid + '|' + r.task_id + '|' + r.planned;
+    if (!seen.has(key)) { seen.add(key); unique.push(r); }
+    if (unique.length >= 100) break;
+  }
+
+  if (!unique.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--s400);padding:16px">No activity logs</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = unique.map(r => {
+    const isDone = r.status === 'DONE';
+    return `<tr>
+      <td class="mono" style="font-size:10px;white-space:nowrap">${escHtml(r.timestamp)}</td>
+      <td style="font-weight:600;white-space:nowrap">${escHtml(r.name)}</td>
+      <td><span class="pill pb" style="font-size:9px">${escHtml(r.dept)}</span></td>
+      <td title="${escHtml(r.task)}">${escHtml(r.task.substring(0, 50))}${r.task.length > 50 ? '…' : ''}</td>
+      <td class="mono" style="white-space:nowrap">${escHtml(r.planned)}</td>
+      <td><span class="pill ${isDone ? 'pg' : 'pa'}">${isDone ? '✅ Done' : '🔴 Open'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function clFilter(mode) {
+  _cl2Filter = mode;
+  ['all','open','done','today'].forEach(m => {
+    const b = document.getElementById('clf-' + m);
+    if (b) b.classList.toggle('act', m === mode);
+  });
+  _cl2ApplyFilters();
+}
+
+function clDept(dept) {
+  _cl2Dept = dept;
+  // Refresh dept tab styles
+  const tabsEl = document.getElementById('cl2-dept-tabs');
+  if (tabsEl) {
+    tabsEl.querySelectorAll('button').forEach(btn => {
+      btn.classList.toggle('act', btn.textContent.replace('🏢 ', '') === (dept === 'all' ? 'All Depts' : dept));
+    });
+  }
+  _cl2ApplyFilters();
+}
+
+function clFilt() { _cl2ApplyFilters(); }
+
 
 // ── ORIGINAL STATIC FMS_DATA (fallback when no live data) ─────────────────────
 const FMS_DATA = [{"SO No": "47.0", "Date": "07/04/2026", "Client Name": "RB WIRE & CABLE", "Payment Terms": "ADVANCE", "PO Number": "47.0", "Total Qty": "150", "Amount": "23475.00", "Total Bill": "27700.50", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "07/04/2026", "PO Number": "47.0", "SO No": "47.0", "Client Name": "RB WIRE & CABLE", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "RED-617", "Qty": "75.0", "Rate": "178.0", "Amount": "13350.0", "Total": "15753.0", "col11": "", "col12": "", "col13": ""}, {"Date": "07/04/2026", "PO Number": "47.0", "SO No": "47.0", "Client Name": "RB WIRE & CABLE", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BLACK-602", "Qty": "75.0", "Rate": "135.0", "Amount": "10125.0", "Total": "11947.5", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "42.0", "Date": "06/04/2026", "Client Name": "MD CABLES AND HARNESS LLP", "Payment Terms": "ADVANCE", "PO Number": "42.0", "Total Qty": "500", "Amount": "51900.00", "Total Bill": "61242.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "06/04/2026", "PO Number": "42.0", "SO No": "42.0", "Client Name": "MD CABLES AND HARNESS LLP", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-333 BLACK", "Qty": "500.0", "Rate": "103.8", "Amount": "51900.0", "Total": "61242.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "36.0", "Date": "04/04/2026", "Client Name": "Reassuranz Technology India Private Limited", "Payment Terms": "ADVANCE", "PO Number": "36.0", "Total Qty": "6", "Amount": "743.00", "Total Bill": "876.74", "Items": 3, "CRM Status": "Pending Call", "items": [{"Date": "04/04/2026", "PO Number": "36.0", "SO No": "36.0", "Client Name": "Reassuranz Technology India Private Limited", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-140 BLACK", "Qty": "2.0", "Rate": "120.5", "Amount": "241.0", "Total": "284.38", "col11": "", "col12": "", "col13": ""}, {"Date": "04/04/2026", "PO Number": "36.0", "SO No": "36.0", "Client Name": "Reassuranz Technology India Private Limited", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-142 BLACK", "Qty": "2.0", "Rate": "122.5", "Amount": "245.0", "Total": "289.1", "col11": "", "col12": "", "col13": ""}, {"Date": "04/04/2026", "PO Number": "36.0", "SO No": "36.0", "Client Name": "Reassuranz Technology India Private Limited", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2031 (DC) BLACK", "Qty": "2.0", "Rate": "128.5", "Amount": "257.0", "Total": "303.26", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3317.0", "Date": "31/03/2026", "Client Name": "KABLO WIRES", "Payment Terms": "ADVANCE", "PO Number": "3317.0", "Total Qty": "25", "Amount": "5800.00", "Total Bill": "6844.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "31/03/2026", "PO Number": "3317.0", "SO No": "3317.0", "Client Name": "KABLO WIRES", "Payment Terms": "ADVANCE", "Item Name": "PE MASTER BATCH", "Item Description": "RED-5715", "Qty": "25.0", "Rate": "232.0", "Amount": "5800.0", "Total": "6844.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3312.0", "Date": "30/03/2026", "Client Name": "KETS ENTERPRISES", "Payment Terms": "ADVANCE", "PO Number": "3312.0", "Total Qty": "1025", "Amount": "185162.50", "Total Bill": "218491.75", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "30/03/2026", "PO Number": "3312.0", "SO No": "3312.0", "Client Name": "KETS ENTERPRISES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2122", "Qty": "1000.0", "Rate": "179.9", "Amount": "179900.0", "Total": "212282.0", "col11": "", "col12": "", "col13": ""}, {"Date": "30/03/2026", "PO Number": "3312.0", "SO No": "3312.0", "Client Name": "KETS ENTERPRISES", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "ORANGE-2691", "Qty": "25.0", "Rate": "210.5", "Amount": "5262.5", "Total": "6209.75", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3309.0", "Date": "30/03/2026", "Client Name": "HAREY KRISHNA CABLES PVT. LTD.", "Payment Terms": "ADVANCE", "PO Number": "3309.0", "Total Qty": "25", "Amount": "5450.00", "Total Bill": "6431.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "30/03/2026", "PO Number": "3309.0", "SO No": "3309.0", "Client Name": "HAREY KRISHNA CABLES PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PE MASTER BATCH", "Item Description": "D.GREY-5752", "Qty": "25.0", "Rate": "218.0", "Amount": "5450.0", "Total": "6431.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3294.0", "Date": "27/03/2026", "Client Name": "PLJ ENTERPRISES", "Payment Terms": "ADVANCE", "PO Number": "3294.0", "Total Qty": "25", "Amount": "4237.50", "Total Bill": "5000.25", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "27/03/2026", "PO Number": "3294.0", "SO No": "3294.0", "Client Name": "PLJ ENTERPRISES", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BLACK-2702", "Qty": "25.0", "Rate": "169.5", "Amount": "4237.5", "Total": "5000.25", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3288.0", "Date": "27/03/2026", "Client Name": "P.S. TECHNOLOGY", "Payment Terms": "ADVANCE", "PO Number": "3288.0", "Total Qty": "525", "Amount": "53962.50", "Total Bill": "63675.75", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "27/03/2026", "PO Number": "3288.0", "SO No": "3288.0", "Client Name": "P.S. TECHNOLOGY", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-333 BLACK", "Qty": "500.0", "Rate": "101.5", "Amount": "50750.0", "Total": "59885.0", "col11": "", "col12": "", "col13": ""}, {"Date": "27/03/2026", "PO Number": "3288.0", "SO No": "3288.0", "Client Name": "P.S. TECHNOLOGY", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2031 (DC) BLACK", "Qty": "25.0", "Rate": "128.5", "Amount": "3212.5", "Total": "3790.75", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3266.0", "Date": "26/03/2026", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "PO Number": "3266.0", "Total Qty": "139", "Amount": "26200.50", "Total Bill": "30916.59", "Items": 8, "CRM Status": "Pending Call", "items": [{"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "PE COMPOUND", "Item Description": "ZHFR-517", "Qty": "125.0", "Rate": "176.5", "Amount": "22062.5", "Total": "26033.75", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "RED-6613", "Qty": "2.0", "Rate": "330.0", "Amount": "660.0", "Total": "778.8", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "BLUE-6623", "Qty": "2.0", "Rate": "290.0", "Amount": "580.0", "Total": "684.4", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "BLACK-6603", "Qty": "2.0", "Rate": "229.0", "Amount": "458.0", "Total": "540.44", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "GREEN-6643", "Qty": "2.0", "Rate": "291.0", "Amount": "582.0", "Total": "686.76", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "YELLOW-6633", "Qty": "2.0", "Rate": "307.0", "Amount": "614.0", "Total": "724.52", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "LSZH MASTER BATCH", "Item Description": "WHITE-6661", "Qty": "2.0", "Rate": "298.0", "Amount": "596.0", "Total": "703.28", "col11": "", "col12": "", "col13": ""}, {"Date": "26/03/2026", "PO Number": "3266.0", "SO No": "3266.0", "Client Name": "NEW KRISHNA METAL", "Payment Terms": "ADVANCE", "Item Name": "PE MASTER BATCH", "Item Description": "WHITE-5764", "Qty": "2.0", "Rate": "324.0", "Amount": "648.0", "Total": "764.64", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3259.0", "Date": "25/03/2026", "Client Name": "COMTEK CABLE", "Payment Terms": "ADVANCE", "PO Number": "3259.0", "Total Qty": "250", "Amount": "25912.50", "Total Bill": "30576.75", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "25/03/2026", "PO Number": "3259.0", "SO No": "3259.0", "Client Name": "COMTEK CABLE", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-118 (HS)", "Qty": "250.0", "Rate": "103.65", "Amount": "25912.5", "Total": "30576.75", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3248.0", "Date": "24/03/2026", "Client Name": "G.S WIRE AND PACKAGING (INDIA) INDUSTRIES", "Payment Terms": "ADVANCE", "PO Number": "3248.0", "Total Qty": "25", "Amount": "2412.50", "Total Bill": "2846.75", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "24/03/2026", "PO Number": "3248.0", "SO No": "3248.0", "Client Name": "G.S WIRE AND PACKAGING (INDIA) INDUSTRIES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2031 (DC) BLACK", "Qty": "25.0", "Rate": "96.5", "Amount": "2412.5", "Total": "2846.75", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3227.0", "Date": "21/03/2026", "Client Name": "INNO COLOR & COMPOUNDS PVT.LTD.", "Payment Terms": "ADVANCE", "PO Number": "3227.0", "Total Qty": "100", "Amount": "9900.00", "Total Bill": "11682.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "21/03/2026", "PO Number": "3227.0", "SO No": "3227.0", "Client Name": "INNO COLOR & COMPOUNDS PVT.LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-116 (H)", "Qty": "100.0", "Rate": "99.0", "Amount": "9900.0", "Total": "11682.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3219.0", "Date": "20/03/2026", "Client Name": "BHAGWATI CORDS & CABLES", "Payment Terms": "ADVANCE", "PO Number": "3219.0", "Total Qty": "1000", "Amount": "97000.00", "Total Bill": "114460.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "20/03/2026", "PO Number": "3219.0", "SO No": "3219.0", "Client Name": "BHAGWATI CORDS & CABLES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-112", "Qty": "1000.0", "Rate": "97.0", "Amount": "97000.0", "Total": "114460.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3212.0", "Date": "20/03/2026", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "PO Number": "3212.0", "Total Qty": "100", "Amount": "9195.00", "Total Bill": "10850.10", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "20/03/2026", "PO Number": "3212.0", "SO No": "3212.0", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-121 (H)", "Qty": "100.0", "Rate": "91.95", "Amount": "9195.0", "Total": "10850.1", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3184.0", "Date": "17/03/2026", "Client Name": "RRT ELECTRICALS & ELECTRONICS (NOIDA)", "Payment Terms": "ADVANCE", "PO Number": "3184.0", "Total Qty": "1025", "Amount": "122897.50", "Total Bill": "145019.05", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "17/03/2026", "PO Number": "3184.0", "SO No": "3184.0", "Client Name": "RRT ELECTRICALS & ELECTRONICS (NOIDA)", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2034 BLACK", "Qty": "250.0", "Rate": "116.8", "Amount": "29200.0", "Total": "34456.0", "col11": "", "col12": "", "col13": ""}, {"Date": "17/03/2026", "PO Number": "3184.0", "SO No": "3184.0", "Client Name": "RRT ELECTRICALS & ELECTRONICS (NOIDA)", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2036 (UN) WH", "Qty": "775.0", "Rate": "120.9", "Amount": "93697.5", "Total": "110563.05", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3178.0", "Date": "17/03/2026", "Client Name": "Tanya Enterprises", "Payment Terms": "ADVANCE", "PO Number": "3178.0", "Total Qty": "120", "Amount": "20230.00", "Total Bill": "23871.40", "Items": 3, "CRM Status": "Pending Call", "items": [{"Date": "17/03/2026", "PO Number": "3178.0", "SO No": "3178.0", "Client Name": "Tanya Enterprises", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-1122 (SPL)", "Qty": "100.0", "Rate": "165.9", "Amount": "16590.0", "Total": "19576.2", "col11": "", "col12": "", "col13": ""}, {"Date": "17/03/2026", "PO Number": "3178.0", "SO No": "3178.0", "Client Name": "Tanya Enterprises", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BROWN-2675", "Qty": "10.0", "Rate": "183.5", "Amount": "1835.0", "Total": "2165.3", "col11": "", "col12": "", "col13": ""}, {"Date": "17/03/2026", "PO Number": "3178.0", "SO No": "3178.0", "Client Name": "Tanya Enterprises", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "L.GREY-2651", "Qty": "10.0", "Rate": "180.5", "Amount": "1805.0", "Total": "2129.9", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3152.0", "Date": "14/03/2026", "Client Name": "SRRS ELECTRONICS AND COMPONENTS LLP", "Payment Terms": "ADVANCE", "PO Number": "3152.0", "Total Qty": "400", "Amount": "68650.00", "Total Bill": "81007.00", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "14/03/2026", "PO Number": "3152.0", "SO No": "3152.0", "Client Name": "SRRS ELECTRONICS AND COMPONENTS LLP", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BLACK-2604", "Qty": "300.0", "Rate": "164.5", "Amount": "49350.0", "Total": "58233.0", "col11": "", "col12": "", "col13": ""}, {"Date": "14/03/2026", "PO Number": "3152.0", "SO No": "3152.0", "Client Name": "SRRS ELECTRONICS AND COMPONENTS LLP", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "RED-2613", "Qty": "100.0", "Rate": "193.0", "Amount": "19300.0", "Total": "22774.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3146.0", "Date": "14/03/2026", "Client Name": "Housecab Solutions Private Limited", "Payment Terms": "ADVANCE", "PO Number": "3146.0", "Total Qty": "1400", "Amount": "165060.00", "Total Bill": "194770.80", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "14/03/2026", "PO Number": "3146.0", "SO No": "3146.0", "Client Name": "Housecab Solutions Private Limited", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "FRLS-57", "Qty": "1400.0", "Rate": "117.9", "Amount": "165060.0", "Total": "194770.8", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3142.0", "Date": "14/03/2026", "Client Name": "GSA CABLE INDUSTRIES", "Payment Terms": "ADVANCE", "PO Number": "3142.0", "Total Qty": "100", "Amount": "10195.00", "Total Bill": "12030.11", "Items": 2, "CRM Status": "Pending Call", "items": [{"Date": "14/03/2026", "PO Number": "3142.0", "SO No": "3142.0", "Client Name": "GSA CABLE INDUSTRIES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-34", "Qty": "75.0", "Rate": "102.65", "Amount": "7698.75", "Total": "9084.53", "col11": "", "col12": "", "col13": ""}, {"Date": "14/03/2026", "PO Number": "3142.0", "SO No": "3142.0", "Client Name": "GSA CABLE INDUSTRIES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-118 (HS)", "Qty": "25.0", "Rate": "99.85", "Amount": "2496.25", "Total": "2945.58", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3119.0", "Date": "12/03/2026", "Client Name": "J K ENTERPRISE", "Payment Terms": "ADVANCE", "PO Number": "JK/PO/25-26/10028", "Total Qty": "1000", "Amount": "119000.00", "Total Bill": "140420.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "12/03/2026", "PO Number": "JK/PO/25-26/10028", "SO No": "3119.0", "Client Name": "J K ENTERPRISE", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-140 BLACK", "Qty": "1000.0", "Rate": "119.0", "Amount": "119000.0", "Total": "140420.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3111.0", "Date": "11/03/2026", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "PO Number": "3111.0", "Total Qty": "100", "Amount": "11440.00", "Total Bill": "13499.20", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "11/03/2026", "PO Number": "3111.0", "SO No": "3111.0", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-32 (F)", "Qty": "100.0", "Rate": "114.4", "Amount": "11440.0", "Total": "13499.2", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3076.0", "Date": "07/03/2026", "Client Name": "KAVITA ENTERPRISES", "Payment Terms": "ADVANCE", "PO Number": "3076.0", "Total Qty": "50", "Amount": "6470.00", "Total Bill": "7634.60", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "07/03/2026", "PO Number": "3076.0", "SO No": "3076.0", "Client Name": "KAVITA ENTERPRISES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2036 (FR)", "Qty": "50.0", "Rate": "129.4", "Amount": "6470.0", "Total": "7634.6", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3071.0", "Date": "07/03/2026", "Client Name": "Housecab Solutions Private Limited", "Payment Terms": "ADVANCE", "PO Number": "3071.0", "Total Qty": "1000", "Amount": "164000.00", "Total Bill": "193520.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "07/03/2026", "PO Number": "3071.0", "SO No": "3071.0", "Client Name": "Housecab Solutions Private Limited", "Payment Terms": "ADVANCE", "Item Name": "LSZH COMPOUND", "Item Description": "ZHFR-546 (UV) A2", "Qty": "1000.0", "Rate": "164.0", "Amount": "164000.0", "Total": "193520.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3056.0", "Date": "06/03/2026", "Client Name": "HI TECH TECHNOLOGY", "Payment Terms": "ADVANCE", "PO Number": "3056.0", "Total Qty": "6480", "Amount": "85860.00", "Total Bill": "90153.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "06/03/2026", "PO Number": "3056.0", "SO No": "3056.0", "Client Name": "HI TECH TECHNOLOGY", "Payment Terms": "ADVANCE", "Item Name": "GULLA/SCRAP", "Item Description": "GULLA/SCRAP", "Qty": "6480.0", "Rate": "13.25", "Amount": "85860.0", "Total": "90153.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3055.0", "Date": "05/03/2026", "Client Name": "HI TECH TECHNOLOGY", "Payment Terms": "ADVANCE", "PO Number": "3055.0", "Total Qty": "1430", "Amount": "18947.50", "Total Bill": "19894.88", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "05/03/2026", "PO Number": "3055.0", "SO No": "3055.0", "Client Name": "HI TECH TECHNOLOGY", "Payment Terms": "ADVANCE", "Item Name": "GULLA/SCRAP", "Item Description": "GULLA/SCRSP", "Qty": "1430.0", "Rate": "13.25", "Amount": "18947.5", "Total": "19894.88", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "3016.0", "Date": "28/02/2026", "Client Name": "J K ENTERPRISE", "Payment Terms": "ADVANCE", "PO Number": "3016.0", "Total Qty": "300", "Amount": "28485.00", "Total Bill": "33612.30", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "28/02/2026", "PO Number": "3016.0", "SO No": "3016.0", "Client Name": "J K ENTERPRISE", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-140 BLACK", "Qty": "300.0", "Rate": "94.95", "Amount": "28485.0", "Total": "33612.3", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "28.0", "Date": "03/04/2026", "Client Name": "PRAKASH CHAND PREM CHAND JAIN", "Payment Terms": "ADVANCE", "PO Number": "28.0", "Total Qty": "15", "Amount": "1821.00", "Total Bill": "2148.78", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "03/04/2026", "PO Number": "28.0", "SO No": "28.0", "Client Name": "PRAKASH CHAND PREM CHAND JAIN", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2005", "Qty": "15.0", "Rate": "121.4", "Amount": "1821.0", "Total": "2148.78", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "218.0", "Date": "27/04/2026", "Client Name": "M/S GEM OVERSEAS", "Payment Terms": "ADVANCE", "PO Number": "218.0", "Total Qty": "125", "Amount": "14475.00", "Total Bill": "17080.50", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "27/04/2026", "PO Number": "218.0", "SO No": "218.0", "Client Name": "M/S GEM OVERSEAS", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "FRLS-57", "Qty": "125.0", "Rate": "115.8", "Amount": "14475.0", "Total": "17080.5", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "2.0", "Date": "01/04/2026", "Client Name": "EKTA POLYMERS", "Payment Terms": "ADVANCE", "PO Number": "2.0", "Total Qty": "200", "Amount": "21900.00", "Total Bill": "25842.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "01/04/2026", "PO Number": "2.0", "SO No": "2.0", "Client Name": "EKTA POLYMERS", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-118 (HS)", "Qty": "200.0", "Rate": "109.5", "Amount": "21900.0", "Total": "25842.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "185.0", "Date": "23/04/2026", "Client Name": "G.S WIRE AND PACKAGING (INDIA) INDUSTRIES", "Payment Terms": "ADVANCE", "PO Number": "1.0", "Total Qty": "200", "Amount": "23500.00", "Total Bill": "27730.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "23/04/2026", "PO Number": "1.0", "SO No": "185.0", "Client Name": "G.S WIRE AND PACKAGING (INDIA) INDUSTRIES", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2031 (DC) BLACK", "Qty": "200.0", "Rate": "117.5", "Amount": "23500.0", "Total": "27730.0", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "175.0", "Date": "22/04/2026", "Client Name": "Aakriti Cables", "Payment Terms": "ADVANCE", "PO Number": "175.0", "Total Qty": "75", "Amount": "15712.50", "Total Bill": "18540.75", "Items": 3, "CRM Status": "Pending Call", "items": [{"Date": "22/04/2026", "PO Number": "175.0", "SO No": "175.0", "Client Name": "Aakriti Cables", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "ORANGE-2691", "Qty": "25.0", "Rate": "202.5", "Amount": "5062.5", "Total": "5973.75", "col11": "", "col12": "", "col13": ""}, {"Date": "22/04/2026", "PO Number": "175.0", "SO No": "175.0", "Client Name": "Aakriti Cables", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "RED-2817", "Qty": "25.0", "Rate": "239.0", "Amount": "5975.0", "Total": "7050.5", "col11": "", "col12": "", "col13": ""}, {"Date": "22/04/2026", "PO Number": "175.0", "SO No": "175.0", "Client Name": "Aakriti Cables", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BROWN-2772", "Qty": "25.0", "Rate": "187.0", "Amount": "4675.0", "Total": "5516.5", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "170.0", "Date": "22/04/2026", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "PO Number": "170.0", "Total Qty": "100", "Amount": "9865.00", "Total Bill": "11640.70", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "22/04/2026", "PO Number": "170.0", "SO No": "170.0", "Client Name": "Baba Cab Industries", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "LF-123", "Qty": "100.0", "Rate": "98.65", "Amount": "9865.0", "Total": "11640.7", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "133.0", "Date": "16/04/2026", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "PO Number": "PO/26-27/00181", "Total Qty": "140", "Amount": "18992.50", "Total Bill": "22411.15", "Items": 9, "CRM Status": "Pending Call", "items": [{"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC COMPOUND", "Item Description": "R-2031 HS", "Qty": "100.0", "Rate": "112.9", "Amount": "11290.0", "Total": "13322.2", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "RED-2613", "Qty": "5.0", "Rate": "202.0", "Amount": "1010.0", "Total": "1191.8", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BLACK-2602", "Qty": "5.0", "Rate": "159.0", "Amount": "795.0", "Total": "938.1", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "YELLOW-2631", "Qty": "5.0", "Rate": "196.5", "Amount": "982.5", "Total": "1159.35", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "BLUE-2623", "Qty": "5.0", "Rate": "191.0", "Amount": "955.0", "Total": "1126.9", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "GREEN-2643", "Qty": "5.0", "Rate": "193.5", "Amount": "967.5", "Total": "1141.65", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "GREY-2651", "Qty": "5.0", "Rate": "189.5", "Amount": "947.5", "Total": "1118.05", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "WHITE-2661", "Qty": "5.0", "Rate": "205.5", "Amount": "1027.5", "Total": "1212.45", "col11": "", "col12": "", "col13": ""}, {"Date": "16/04/2026", "PO Number": "PO/26-27/00181", "SO No": "133.0", "Client Name": "BLISSTERING ELECTRONICS PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PVC MASTER BATCH", "Item Description": "ORANGE-2692", "Qty": "5.0", "Rate": "203.5", "Amount": "1017.5", "Total": "1200.65", "col11": "", "col12": "", "col13": ""}]}, {"SO No": "105.0", "Date": "13/04/2026", "Client Name": "HAREY KRISHNA CABLES PVT. LTD.", "Payment Terms": "ADVANCE", "PO Number": "HKC/PO/114", "Total Qty": "100", "Amount": "19000.00", "Total Bill": "22420.00", "Items": 1, "CRM Status": "Pending Call", "items": [{"Date": "13/04/2026", "PO Number": "HKC/PO/114", "SO No": "105.0", "Client Name": "HAREY KRISHNA CABLES PVT. LTD.", "Payment Terms": "ADVANCE", "Item Name": "PE MASTER BATCH", "Item Description": "BLACK-5701", "Qty": "100.0", "Rate": "190.0", "Amount": "19000.0", "Total": "22420.0", "col11": "", "col12": "", "col13": ""}]}];
@@ -1949,6 +2269,31 @@ function go(id, el, title) {
   if (el) el.classList.add('act');
   document.getElementById('topmod').textContent = title;
   document.querySelector('.main').scrollTop = 0;
+  // Auto-load checklist on first visit
+  if (id === 'checklist2' && _cl2Rows.length === 0) {
+    // Show skeleton loading state
+    const tb = document.getElementById('cl2Tb');
+    if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--s400)">⟳ Loading tasks from Google Sheets…</td></tr>';
+    const lb = document.getElementById('cl2LogTb');
+    if (lb) lb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--s400)">⟳ Loading activity log…</td></tr>';
+    // Set metric placeholders
+    ['cl2-total','cl2-open','cl2-done','cl2-staff','cl2-depts','cl2-pct'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '…';
+    });
+    ERPLoader.loadChecklist()
+      .then(d => {
+        // API returns { ok, tasks, logs } — unwrap correctly
+        const payload = (d && d.tasks) ? d : { tasks: Array.isArray(d) ? d : [], logs: [] };
+        renderChecklist(payload);
+        showToast('✅ Task Checklist loaded — ' + (payload.tasks.length) + ' tasks', 'success');
+      })
+      .catch(e => {
+        console.error('[Checklist] Load failed:', e);
+        const tb2 = document.getElementById('cl2Tb');
+        if (tb2) tb2.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--r)">⚠ Failed to load: ' + e.message + ' — Check console & API key</td></tr>';
+        showToast('⚠ Checklist load failed: ' + e.message, 'error');
+      });
+  }
 }
 
 // ── SEARCH / FILTER ──────────────────────────────────────────
@@ -3035,6 +3380,7 @@ function clRender() {
   document.getElementById('cl-complete').textContent = clData.filter(r=>r.status==='Complete').length;
   document.getElementById('cl-pending').textContent = clData.filter(r=>r.status!=='Complete').length;
 }
+
 
 function clShowToast(msg, type) {
   let t = document.querySelector('.toast');
