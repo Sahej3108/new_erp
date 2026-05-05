@@ -1,40 +1,15 @@
-/**
- * TPPL ERP — Google Sheets Dynamic Data Fetcher (Node.js)
- * =========================================================
- * Exact JS equivalent of tppl_sheets_fetcher.py
- *
- * SETUP:
- * 1. npm install express cors
- * 2. Place service_account.json next to this file  (or set env vars — see below)
- * 3. Share every sheet with the service account email
- * 4. node tppl_sheets_fetcher.js
- * 5. HTML frontend fetches from http://localhost:5000/api/erp-data
- *
- * ENV VARS (optional — overrides service_account.json, required for Vercel):
- *   GOOGLE_CLIENT_EMAIL   → client_email from service_account.json
- *   GOOGLE_PRIVATE_KEY    → private_key  from service_account.json
- *
- * SHEET MAP (confirmed from Google Drive):
- *   Main data spreadsheet    → "data spreadsheet"          1MgsPCBWo-GGbGf-I_Y0LRCtY64B1aVbVQQYpTqFI4NY
- *     Tabs: Dispatch, order, pending sales, Stock, Production Requirement
- *
- *   Dispatch FMS source      → "New Dispatch fms DEC 2025" 17JDVzgF7pK_7C25_k8VKIlC4gbizdASaYjob2JDQWzo
- *     Tab: DATA
- *
- *   O2D / FMS source         →                             1A3wZ4PvmuNn3TWOI96W3IUK62oxOFzY6_JueiaXBuKA
- *   Collection FMS log       → "TPPL Collection FMS"       1nqIlxfNARypJycUBCKL736Vm082gAOBC3ljdUUm6x4s
- *   FMS done / O2D done      →                             1T0pj7dWZ8ixYaeLORVKtmO55TYCDBjFpNSp4KuJg9o4
- *   O2D call-later           →                             19H9thoVTStj7kCBOoODvpGD7T2I9uj01FrQbqBQY6A0
- *   Dispatch FMS Hold log    →                             14tSrq3GAFtY144Wp9DbW3Q6_isIIr2u2PIJM5O7b478
- *   Dispatch FMS Done log    →                             1zhZQeU4nr2P8JUFJJK1a9gs1li34xZT-zpzAR9KEgoQ
- */
-
 'use strict';
 
-const fs      = require('fs');
-const path    = require('path');
-const express = require('express');
-const cors    = require('cors');
+/**
+ * TPPL ERP — Vercel Serverless API Handler
+ * =========================================
+ * This file replaces the Express listen() call for Vercel deployment.
+ * Vercel routes all /api/* requests here via vercel.json rewrites.
+ *
+ * ENV VARS required in Vercel project settings:
+ *   GOOGLE_CLIENT_EMAIL   — client_email from service_account.json
+ *   GOOGLE_PRIVATE_KEY    — private_key  from service_account.json (with real \n)
+ */
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SHEET IDs
@@ -50,48 +25,30 @@ const O2D_CALL_LATER_ID          = '19H9thoVTStj7kCBOoODvpGD7T2I9uj01FrQbqBQY6A0
 const O2D_DONE_SHEET_ID          = '1T0pj7dWZ8ixYaeLORVKtmO55TYCDBjFpNSp4KuJg9o4';
 const DISPATCH_FMS_HOLD_SHEET_ID = '14tSrq3GAFtY144Wp9DbW3Q6_isIIr2u2PIJM5O7b478';
 const DISPATCH_FMS_DONE_SHEET_ID = '1zhZQeU4nr2P8JUFJJK1a9gs1li34xZT-zpzAR9KEgoQ';
+const CHECKLIST_SHEET_ID         = '1mvd94ei64eITswOua4b-d_o7IhnRs_lKxLJgRF6H7DE';
 
 const RATE_CL_SHEET_URL =
   'https://script.google.com/a/macros/takkarpolychem.com/s/' +
   'AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec';
 
-const SERVICE_ACCOUNT_FILE = 'service_account.json';
-const O2D_PLAN_DAYS        = 3;
-const PORT                 = 5000;
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
+const O2D_PLAN_DAYS = 3;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GOOGLE AUTH — JWT → access token  (replaces gspread / google-auth)
+// GOOGLE AUTH — JWT → access token (no googleapis dependency)
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Load credentials from env vars (Vercel) or service_account.json (local).
- */
 function loadCredentials() {
-  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-    return {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key:  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    };
-  }
-  if (!fs.existsSync(SERVICE_ACCOUNT_FILE)) {
+  const email = process.env.GOOGLE_CLIENT_EMAIL;
+  const key   = process.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !key) {
     throw new Error(
-      `'${SERVICE_ACCOUNT_FILE}' not found and GOOGLE_CLIENT_EMAIL env var not set. ` +
-      'Place service_account.json next to this file or set environment variables.'
+      'Missing GOOGLE_CLIENT_EMAIL or GOOGLE_PRIVATE_KEY environment variables. ' +
+      'Set them in your Vercel project settings → Environment Variables.'
     );
   }
-  const sa = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_FILE, 'utf8'));
-  return { client_email: sa.client_email, private_key: sa.private_key };
+  return { client_email: email, private_key: key.replace(/\\n/g, '\n') };
 }
 
-/**
- * Build a signed JWT and exchange it for a Google OAuth2 access token.
- * Uses Node's built-in crypto — no googleapis dependency needed.
- */
 async function getAccessToken() {
   const { client_email, private_key } = loadCredentials();
 
@@ -104,12 +61,10 @@ async function getAccessToken() {
     exp:   now + 3600,
   };
 
-  // Build unsigned JWT
   const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify(claim)).toString('base64url');
   const unsigned = `${header}.${payload}`;
 
-  // Sign with RS256 using Web Crypto (built into Node 18+)
   const keyPem = private_key
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
@@ -131,7 +86,6 @@ async function getAccessToken() {
 
   const jwt = `${unsigned}.${Buffer.from(sigBuffer).toString('base64url')}`;
 
-  // Exchange JWT for access token
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -146,15 +100,10 @@ async function getAccessToken() {
   return json.access_token;
 }
 
-
 // ══════════════════════════════════════════════════════════════════════════════
-// LOW-LEVEL SHEET HELPERS  (replaces gspread calls)
+// SHEET HELPERS
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Fetch all rows from a sheet tab as array-of-objects.
- * First row = headers (same as gspread get_all_records).
- */
 async function fetchSheetAsRecords(spreadsheetId, sheetName) {
   const token = await getAccessToken();
   const url   = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}`;
@@ -168,9 +117,6 @@ async function fetchSheetAsRecords(spreadsheetId, sheetName) {
   );
 }
 
-/**
- * Append one row to a sheet tab (same as gspread append_row).
- */
 async function appendRowToSheet(spreadsheetId, sheetName, rowData) {
   const token = await getAccessToken();
   const url   = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/` +
@@ -183,55 +129,27 @@ async function appendRowToSheet(spreadsheetId, sheetName, rowData) {
   if (!res.ok) throw new Error(`Sheets append error ${res.status}: ${await res.text()}`);
 }
 
-/** Safe float conversion — same as Python _to_float() */
 function toFloat(value) {
   const n = parseFloat(String(value ?? '').replace(/,/g, '').trim());
   return isNaN(n) ? 0.0 : n;
 }
 
-/**
- * Shared handler for all POST /api/append/* routes.
- * Equivalent to Python _append_endpoint().
- */
-async function appendEndpoint(req, res, sheetId, sheetName = 'Sheet1') {
-  const row = (req.body || {}).row || [];
-  if (!row.length) return res.status(400).json({ ok: false, error: 'No row data provided' });
-  try {
-    await appendRowToSheet(sheetId, sheetName, row);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-}
-
-
 // ══════════════════════════════════════════════════════════════════════════════
-// DATA FETCH FUNCTIONS  (1-to-1 with Python fetch_* functions)
+// DATA FETCH FUNCTIONS
 // ══════════════════════════════════════════════════════════════════════════════
 
-/** Tab 'order' in main spreadsheet. */
 async function fetchSalesOrders() {
   return fetchSheetAsRecords(SPREADSHEET_ID, 'order');
 }
 
-/** Tab 'pending sales' in main spreadsheet. */
 async function fetchPendingOrders() {
   return fetchSheetAsRecords(SPREADSHEET_ID, 'pending sales');
 }
 
-/**
- * Tab 'Dispatch' in main spreadsheet.
- * Columns: Date of Dispatch, Party Name, PO Number, SO No, Invoice No,
- *          Item Name, Item Description, BatchName, Qty, Rate, Amount, Total
- */
 async function fetchDispatchOrders() {
   return fetchSheetAsRecords(SPREADSHEET_ID, 'Dispatch');
 }
 
-/**
- * Tab 'DATA' in 'New Dispatch fms DEC 2025'.
- * Normalises column names for the frontend.
- */
 async function fetchDispatchFms() {
   const records = await fetchSheetAsRecords(DISPATCH_FMS_SOURCE_ID, 'DATA');
   return records.map(r => ({
@@ -249,21 +167,14 @@ async function fetchDispatchFms() {
   }));
 }
 
-/** Tab 'Stock' in main spreadsheet. */
 async function fetchStockRegister() {
   return fetchSheetAsRecords(SPREADSHEET_ID, 'Stock');
 }
 
-/** Tab 'Production Requirement' in main spreadsheet. */
 async function fetchProductionRequirements() {
   return fetchSheetAsRecords(SPREADSHEET_ID, 'Production Requirement');
 }
 
-/**
- * Tab 'o2d' in FMS_SHEET_ID.
- * Filters Payment Terms = ADVANCE and groups rows into order-level records
- * with a nested 'items' array. Exact equivalent of Python fetch_fms_advance_orders().
- */
 async function fetchFmsAdvanceOrders() {
   const raw       = await fetchSheetAsRecords(FMS_SHEET_ID, 'o2d');
   const ordersMap = {};
@@ -303,17 +214,11 @@ async function fetchFmsAdvanceOrders() {
   return Object.values(ordersMap);
 }
 
-/**
- * Tab 'Sheet1' in O2D_SOURCE_SHEET_ID.
- * Computes Plan_Date = SO_Date + O2D_PLAN_DAYS.
- * Exact equivalent of Python fetch_o2d_pipeline().
- */
 async function fetchO2dPipeline() {
   const raw     = await fetchSheetAsRecords(O2D_SOURCE_SHEET_ID, 'Sheet1');
   const results = [];
 
   for (const row of raw) {
-    // Normalise: replace spaces with underscores in keys
     const norm = Object.fromEntries(
       Object.entries(row).map(([k, v]) => [k.replace(/ /g, '_'), v])
     );
@@ -322,9 +227,9 @@ async function fetchO2dPipeline() {
     let planDateStr = '';
     if (soDateStr) {
       try {
-        const soDate   = new Date(soDateStr);
+        const soDate = new Date(soDateStr);
         soDate.setDate(soDate.getDate() + O2D_PLAN_DAYS);
-        planDateStr    = soDate.toISOString().slice(0, 10);  // YYYY-MM-DD
+        planDateStr  = soDate.toISOString().slice(0, 10);
       } catch (_) {}
     }
 
@@ -347,7 +252,87 @@ async function fetchO2dPipeline() {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DASHBOARD METRICS  (same as Python compute_dashboard_metrics)
+// CHECKLIST SHEET FETCHERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Task definitions — fetched via public CSV export (gid=0, Sheet1) */
+async function fetchChecklistTasks() {
+  const raw = await fetchPublicSheetCsv(CHECKLIST_SHEET_ID, 0);
+  return raw.map(r => ({
+    name:      String(r['NAME']        || '').trim(),
+    email:     String(r['Email']       || '').trim(),
+    dept:      String(r['Department']  || '').trim(),
+    task_id:   String(r['Task ID']     || '').trim(),
+    freq:      String(r['Freq']        || '').trim(),
+    task:      String(r['Task']        || '').trim(),
+    planned:   String(r['Planned']     || '').trim(),
+    done_on:   String(r['Done On']     || '').trim(),
+    status:    String(r['Status']      || '').trim().toUpperCase(),
+    remark:    String(r['Remark']      || '').trim(),
+  }));
+}
+
+/** Activity log — fetched via public CSV export (gid=870761503, Sheet2) */
+async function fetchChecklistLogs() {
+  const raw = await fetchPublicSheetCsv(CHECKLIST_SHEET_ID, 870761503);
+  return raw.map(r => ({
+    timestamp:   String(r['Timestamp']          || '').trim(),
+    uid:         String(r['UID']                || '').trim(),
+    name:        String(r['Doer Name']          || '').trim(),
+    email:       String(r['Email']              || '').trim(),
+    dept:        String(r['Department']         || '').trim(),
+    task_id:     String(r['Task ID']            || '').trim(),
+    freq:        String(r['Freq']               || '').trim(),
+    task:        String(r['Task']               || '').trim(),
+    planned:     String(r['Planned']            || '').trim(),
+    status:      String(r['Status']             || '').trim().toUpperCase(),
+    mails_sent:  String(r['No of Mail Send']    || '').trim(),
+    calls_today: String(r['No of Calling Today']|| '').trim(),
+    summary:     String(r['Summary']            || '').trim(),
+  }));
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CSV FETCH — for sheets shared publicly (no service account needed)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Parse a CSV string into array of objects (header row → keys) */
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  // Simple CSV parser — handles quoted fields
+  function parseRow(line) {
+    const cells = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cells.push(cur.trim());
+    return cells;
+  }
+  const headers = parseRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const cells = parseRow(line);
+    return Object.fromEntries(headers.map((h, i) => [h.trim(), (cells[i] || '').trim()]));
+  });
+}
+
+/** Fetch a Google Sheet tab as records via public CSV export (no auth required).
+ *  The sheet must be shared as "Anyone with the link can view". */
+async function fetchPublicSheetCsv(spreadsheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+  const res = await fetch(url, { redirect: 'follow' });
+  if (!res.ok) throw new Error(`CSV fetch error ${res.status} for gid=${gid} — make sure sheet is shared publicly`);
+  const text = await res.text();
+  return parseCsv(text);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD METRICS
 // ══════════════════════════════════════════════════════════════════════════════
 
 function computeDashboardMetrics(orders, pending, dispatch, stock, production, fms) {
@@ -377,198 +362,159 @@ function computeDashboardMetrics(orders, pending, dispatch, stock, production, f
   };
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// CORS HEADERS  (required for Vercel — browser fetches from different origin)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin',  '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FLASK → EXPRESS  READ ENDPOINTS
+// SHARED APPEND HANDLER
 // ══════════════════════════════════════════════════════════════════════════════
 
-/** GET /api/erp-data — master endpoint, all data in one call */
-app.get('/api/erp-data', async (req, res) => {
-  try {
-    const [orders, pending, dispatch, dispfms, stock, production, fms, o2d] =
-      await Promise.all([
-        fetchSalesOrders(),
-        fetchPendingOrders(),
-        fetchDispatchOrders(),
-        fetchDispatchFms(),
-        fetchStockRegister(),
-        fetchProductionRequirements(),
-        fetchFmsAdvanceOrders(),
-        fetchO2dPipeline(),
-      ]);
-
-    const metrics = computeDashboardMetrics(orders, pending, dispatch, stock, production, fms);
-
-    res.json({
-      ok:         true,
-      metrics,
-      orders,
-      pending,
-      dispatch,
-      dispfms,       // ← Dispatch FMS source
-      stock,
-      production,
-      fms,
-      o2d,
+async function appendEndpoint(req, res, sheetId, sheetName = 'Sheet1') {
+  let body = req.body || {};
+  // Vercel doesn't parse body automatically — handle raw stream
+  if (!body.row) {
+    body = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => { data += chunk; });
+      req.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch { resolve({}); }
+      });
+      req.on('error', reject);
     });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
   }
-});
-
-app.get('/api/orders',     async (req, res) => {
-  try { res.json(await fetchSalesOrders());           } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/pending',    async (req, res) => {
-  try { res.json(await fetchPendingOrders());         } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/dispatch',   async (req, res) => {
-  try { res.json(await fetchDispatchOrders());        } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/dispfms',    async (req, res) => {
-  try { res.json(await fetchDispatchFms());           } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/stock',      async (req, res) => {
-  try { res.json(await fetchStockRegister());         } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/production', async (req, res) => {
-  try { res.json(await fetchProductionRequirements()); } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/fms',        async (req, res) => {
-  try { res.json(await fetchFmsAdvanceOrders());      } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/o2d',        async (req, res) => {
-  try { res.json(await fetchO2dPipeline());           } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'TPPL ERP Sheets Fetcher (JS)', time: new Date().toISOString() });
-});
-
+  const row = body.row || [];
+  if (!row.length) {
+    res.status(400).json({ ok: false, error: 'No row data provided' });
+    return;
+  }
+  await appendRowToSheet(sheetId, sheetName, row);
+  res.json({ ok: true });
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FLASK → EXPRESS  WRITE / APPEND ENDPOINTS
+// VERCEL SERVERLESS HANDLER  (replaces app.listen)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ── Collection FMS ────────────────────────────────────────────────────────────
+module.exports = async function handler(req, res) {
+  setCors(res);
 
-/** POST /api/append/call-later — log Call Later from Collection FMS */
-app.post('/api/append/call-later',     (req, res) => appendEndpoint(req, res, CALL_LATER_SHEET_ID));
+  // Preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
 
-/** POST /api/append/done — log Payment Done from Collection FMS */
-app.post('/api/append/done',           (req, res) => appendEndpoint(req, res, DONE_SHEET_ID));
+  const url    = req.url || '/';
+  // Strip query string for routing
+  const path   = url.split('?')[0];
+  const method = req.method || 'GET';
 
-// ── O2D Pipeline ──────────────────────────────────────────────────────────────
-
-/** POST /api/append/o2d-call-later */
-app.post('/api/append/o2d-call-later', (req, res) => appendEndpoint(req, res, O2D_CALL_LATER_ID));
-
-/** POST /api/append/o2d-done */
-app.post('/api/append/o2d-done',       (req, res) => appendEndpoint(req, res, O2D_DONE_SHEET_ID));
-
-// ── Dispatch FMS ──────────────────────────────────────────────────────────────
-
-/**
- * POST /api/append/dispatch-hold
- * Body: { row: [logged_at, dispatch_date, party_name, invoice_no, item, qty, "HOLD", remark] }
- * Writes to Dispatch FMS Hold log sheet → Sheet1
- * Headers: Logged At | Dispatch Date | Party Name | Invoice No | Item | Qty | Status | Remark
- */
-app.post('/api/append/dispatch-hold',  (req, res) => appendEndpoint(req, res, DISPATCH_FMS_HOLD_SHEET_ID));
-
-/**
- * POST /api/append/dispatch-done
- * Body: { row: [logged_at, dispatch_date, party_name, invoice_no, item, qty, "DONE"] }
- * Writes to Dispatch FMS Done log sheet → Sheet1
- * Headers: Logged At | Dispatch Date | Party Name | Invoice No | Item | Qty | Status
- */
-app.post('/api/append/dispatch-done',  (req, res) => appendEndpoint(req, res, DISPATCH_FMS_DONE_SHEET_ID));
-
-// ── Rate Checklist (Apps Script proxy) ───────────────────────────────────────
-
-/** POST /api/append/rate-checklist — forward to Google Apps Script web app */
-app.post('/api/append/rate-checklist', async (req, res) => {
-  const row = (req.body || {}).row || [];
   try {
-    const response = await fetch(RATE_CL_SHEET_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action: 'rate_checklist', data: row }),
-    });
-    if (!response.ok) throw new Error(`Apps Script returned ${response.status}`);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
+    // ── READ ENDPOINTS ──────────────────────────────────────────────────────
 
-
-// ══════════════════════════════════════════════════════════════════════════════
-// CLI — CONNECTIVITY TEST  (equivalent of Python print_summary / --test flag)
-// ══════════════════════════════════════════════════════════════════════════════
-
-async function printSummary() {
-  console.log('── TPPL ERP Google Sheets Connectivity Test ──');
-  const checks = [
-    ['Sales Orders          (order tab)',               fetchSalesOrders],
-    ['Pending Orders        (pending sales tab)',       fetchPendingOrders],
-    ['Dispatch              (Dispatch tab)',            fetchDispatchOrders],
-    ['Dispatch FMS source   (New Dispatch fms sheet)',  fetchDispatchFms],
-    ['Stock Register        (Stock tab)',               fetchStockRegister],
-    ['Production Req.       (Production Req. tab)',     fetchProductionRequirements],
-    ['FMS Advance Orders    (o2d tab, ADVANCE filter)', fetchFmsAdvanceOrders],
-    ['O2D Pipeline          (Sheet1)',                  fetchO2dPipeline],
-  ];
-  for (const [name, fn] of checks) {
-    try {
-      const rows = await fn();
-      console.log(`  ✅  ${name}: ${rows.length} rows`);
-    } catch (err) {
-      console.log(`  ❌  ${name}: ${err.message}`);
+    if (method === 'GET' && path === '/api/health') {
+      return res.json({ ok: true, service: 'TPPL ERP Sheets API (Vercel)', time: new Date().toISOString() });
     }
+
+    if (method === 'GET' && path === '/api/erp-data') {
+      const [orders, pending, dispatch, dispfms, stock, production, fms, o2d] =
+        await Promise.all([
+          fetchSalesOrders(),
+          fetchPendingOrders(),
+          fetchDispatchOrders(),
+          fetchDispatchFms(),
+          fetchStockRegister(),
+          fetchProductionRequirements(),
+          fetchFmsAdvanceOrders(),
+          fetchO2dPipeline(),
+        ]);
+
+      const metrics = computeDashboardMetrics(orders, pending, dispatch, stock, production, fms);
+
+      return res.json({ ok: true, metrics, orders, pending, dispatch, dispfms, stock, production, fms, o2d });
+    }
+
+    if (method === 'GET' && path === '/api/orders')     return res.json(await fetchSalesOrders());
+    if (method === 'GET' && path === '/api/pending')    return res.json(await fetchPendingOrders());
+    if (method === 'GET' && path === '/api/dispatch')   return res.json(await fetchDispatchOrders());
+    if (method === 'GET' && path === '/api/dispfms')    return res.json(await fetchDispatchFms());
+    if (method === 'GET' && path === '/api/stock')      return res.json(await fetchStockRegister());
+    if (method === 'GET' && path === '/api/production') return res.json(await fetchProductionRequirements());
+    if (method === 'GET' && path === '/api/fms')        return res.json(await fetchFmsAdvanceOrders());
+    if (method === 'GET' && path === '/api/o2d')        return res.json(await fetchO2dPipeline());
+    if (method === 'GET' && path === '/api/checklist')  {
+      try {
+        console.log('[API] /api/checklist — fetching tasks and logs from public CSV');
+        const [tasks, logs] = await Promise.all([
+          fetchChecklistTasks().catch(e => { 
+            console.error('[API] fetchChecklistTasks failed:', e.message); 
+            throw e;
+          }),
+          fetchChecklistLogs().catch(e => {
+            console.error('[API] fetchChecklistLogs failed:', e.message);
+            throw e;
+          }),
+        ]);
+        console.log('[API] Success — tasks:', tasks.length, 'logs:', logs.length);
+        return res.json({ ok: true, tasks, logs });
+      } catch (err) {
+        console.error('[API] /api/checklist error:', err);
+        return res.status(500).json({ ok: false, error: err.message });
+      }
+    }
+
+    // ── WRITE ENDPOINTS ─────────────────────────────────────────────────────
+
+    if (method === 'POST' && path === '/api/append/call-later')
+      return appendEndpoint(req, res, CALL_LATER_SHEET_ID);
+
+    if (method === 'POST' && path === '/api/append/done')
+      return appendEndpoint(req, res, DONE_SHEET_ID);
+
+    if (method === 'POST' && path === '/api/append/o2d-call-later')
+      return appendEndpoint(req, res, O2D_CALL_LATER_ID);
+
+    if (method === 'POST' && path === '/api/append/o2d-done')
+      return appendEndpoint(req, res, O2D_DONE_SHEET_ID);
+
+    if (method === 'POST' && path === '/api/append/dispatch-hold')
+      return appendEndpoint(req, res, DISPATCH_FMS_HOLD_SHEET_ID);
+
+    if (method === 'POST' && path === '/api/append/dispatch-done')
+      return appendEndpoint(req, res, DISPATCH_FMS_DONE_SHEET_ID);
+
+    if (method === 'POST' && path === '/api/append/rate-checklist') {
+      let body = req.body || {};
+      if (!body.row) {
+        body = await new Promise((resolve, reject) => {
+          let data = '';
+          req.on('data', chunk => { data += chunk; });
+          req.on('end',  () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
+          req.on('error', reject);
+        });
+      }
+      const row = body.row || [];
+      const response = await fetch(RATE_CL_SHEET_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'rate_checklist', data: row }),
+      });
+      if (!response.ok) throw new Error(`Apps Script returned ${response.status}`);
+      return res.json({ ok: true });
+    }
+
+    // ── 404 ─────────────────────────────────────────────────────────────────
+    res.status(404).json({ ok: false, error: `No handler for ${method} ${path}` });
+
+  } catch (err) {
+    console.error('[TPPL ERP API]', err);
+    res.status(500).json({ ok: false, error: err.message });
   }
-  console.log('── Done ──');
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// START
-// ══════════════════════════════════════════════════════════════════════════════
-
-if (process.argv.includes('--test')) {
-  printSummary().then(() => process.exit(0));
-} else {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀  TPPL ERP Sheets API → http://localhost:${PORT}`);
-    console.log('');
-    console.log('  READ:');
-    console.log('    GET  /api/erp-data              → All ERP data (single call)');
-    console.log('    GET  /api/orders                → Sales orders');
-    console.log('    GET  /api/pending               → Pending orders');
-    console.log('    GET  /api/dispatch              → Dispatch register');
-    console.log('    GET  /api/dispfms               → Dispatch FMS source');
-    console.log('    GET  /api/stock                 → Stock register');
-    console.log('    GET  /api/production            → Production requirements');
-    console.log('    GET  /api/fms                   → Collection FMS advance orders');
-    console.log('    GET  /api/o2d                   → O2D pipeline');
-    console.log('    GET  /api/health                → Health check');
-    console.log('');
-    console.log('  WRITE:');
-    console.log('    POST /api/append/call-later     → Collection FMS: call-later log');
-    console.log('    POST /api/append/done           → Collection FMS: done log');
-    console.log('    POST /api/append/o2d-call-later → O2D: call-later log');
-    console.log('    POST /api/append/o2d-done       → O2D: done log');
-    console.log('    POST /api/append/dispatch-hold  → Dispatch FMS: hold log');
-    console.log('    POST /api/append/dispatch-done  → Dispatch FMS: done log');
-    console.log('    POST /api/append/rate-checklist → Rate checklist (Apps Script)');
-    console.log('');
-    console.log('  Tip: node tppl_sheets_fetcher.js --test  to check all connections first.');
-  });
-}
+};
