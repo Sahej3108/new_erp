@@ -272,9 +272,9 @@ async function fetchChecklistTasks() {
   }));
 }
 
-/** Activity log — fetched via public CSV export (gid=870761503, Sheet2) */
+/** Activity log — fetched from Sheet2 via Sheets API */
 async function fetchChecklistLogs() {
-  const raw = await fetchPublicSheetCsv(CHECKLIST_SHEET_ID, 870761503);
+  const raw = await fetchSheetAsRecords(CHECKLIST_SHEET_ID, 'Sheet2');
   return raw.map(r => ({
     timestamp:   String(r['Timestamp']          || '').trim(),
     uid:         String(r['UID']                || '').trim(),
