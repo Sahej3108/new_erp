@@ -345,6 +345,11 @@ tr.o2d-overdue:hover td{background:#fff5d6}
       Delegation
       <span class="nbadge pu">NEW</span>
     </div>
+    <div class="ni" onclick="go('leads',this,'Lead Testing')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="4" r="2.5"/><path d="M2 14s1-3 6-3 6 3 6 3"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      Lead Testing
+      <span class="nbadge bl">NEW</span>
+    </div>
     <div class="ni" onclick="go('checklist2',this,'Task Checklist')">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5l2 2 4-4M5 10l2 2 4-4"/></svg>
       Task Checklist
@@ -1124,7 +1129,7 @@ tr.o2d-overdue:hover td{background:#fff5d6}
 
 <!-- ══════════ TASK CHECKLIST ══════════ -->
 <div class="screen" id="sc-checklist2">
-  <div class="sync-bar fms-sync">✅ Task Checklist — fetched live from "new checklist" Google Sheet (public CSV) · auto-refresh on visit
+  <div class="sync-bar fms-sync">✅ Task Checklist — sourced from "new checklist" Google Sheet · live data
     <button class="btn-sm btno" style="margin-left:10px" onclick="erpRefresh('checklist2')">⟳ Refresh</button>
   </div>
   <div class="ph">
@@ -1196,6 +1201,63 @@ tr.o2d-overdue:hover td{background:#fff5d6}
       </thead>
       <tbody id="cl2LogTb"></tbody>
     </table></div>
+  </div>
+</div>
+
+<!-- ══════════ LEAD TESTING ══════════ -->
+<div class="screen" id="sc-leads">
+  <div class="sync-bar" id="leads-sync-bar">⟳ Loading leads…</div>
+  
+  <div class="ph">
+    <div>
+      <div class="pt">Lead Testing & Management</div>
+      <div class="ps">Dynamically loaded from Google Sheet · Real-time validation & scoring</div>
+    </div>
+    <div class="ha">
+      <input class="si" id="leadsQ" placeholder="Search company, email, phone…" oninput="leadsSearch(this.value)">
+      <button class="btn btng" style="font-size:11px" onclick="leadsLoadData()">⟳ Refresh Leads</button>
+    </div>
+  </div>
+
+  <div class="mrow">
+    <div class="mc b"><div class="ml">Total Leads</div><div class="mv" id="leads-total">0</div><div class="ms">in pipeline</div></div>
+    <div class="mc g"><div class="ml">Hot Leads</div><div class="mv" id="leads-hot">0</div><div class="ms">score ≥ 80</div></div>
+    <div class="mc a"><div class="ml">Warm Leads</div><div class="mv" id="leads-warm">0</div><div class="ms">score 50-79</div></div>
+    <div class="mc r"><div class="ml">Cold Leads</div><div class="mv" id="leads-cold">0</div><div class="ms">score < 50</div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">
+      <div class="ct">Lead Testing Register</div>
+      <span class="ds-badge" id="leads-badge-info">📊 Leads Sheet (Dynamic)</span>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Company</th>
+            <th>Industry</th>
+            <th>Status</th>
+            <th>Last Contact</th>
+            <th>Score</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody">
+          <tr><td colspan="10" style="text-align:center;padding:20px;color:var(--s400)">Loading leads from Google Sheet…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:16px;justify-content:center;align-items:center;flex-wrap:wrap">
+    <button class="btn btno" id="leads-prev" onclick="leadsLoadData(leadsCurrentPage-1)" disabled>← Previous Page</button>
+    <span id="leads-pagination" style="font-size:12px;color:var(--s500);min-width:120px;text-align:center">Page 1 of 1</span>
+    <button class="btn btno" id="leads-next" onclick="leadsLoadData(leadsCurrentPage+1)" disabled>Next Page →</button>
   </div>
 </div>
 
@@ -1442,11 +1504,6 @@ const ERP_CONFIG = {
   TAB_PRODUCTION: 'Production Requirement',
   TAB_O2D:        'Sheet1',                   // O2D source tab
 
-  // ── Checklist Sheet (public CSV — no auth required) ──────────────────────
-  CHECKLIST_SHEET_ID:     '1mvd94ei64eITswOua4b-d_o7IhnRs_lKxLJgRF6H7DE',
-  CHECKLIST_GID_TASKS:    0,           // Sheet1 — task definitions
-  CHECKLIST_GID_LOGS:     870761503,   // Sheet2 — activity log
-
   // ── Write-back (Apps Script web app) ────────────────────────────────────
   APPS_SCRIPT_URL: 'https://script.google.com/a/macros/takkarpolychem.com/s/AKfycbysaa_5eoEQjD2G57IRnPzV0O2YNo-WfPWxweyoSAK5j1kwbmUe5Q4nvX6PiYz0cSQ/exec',
 
@@ -1460,72 +1517,6 @@ const ERP_CONFIG = {
   O2D_PLAN_DAYS: 3,
 };
 
-
-// ─── PUBLIC CSV HELPERS (checklist — no auth required) ──────────────────────
-function parsePublicCsv(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  function parseRow(line) {
-    const cells = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQ = !inQ; }
-      else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
-      else { cur += ch; }
-    }
-    cells.push(cur.trim());
-    return cells;
-  }
-  const headers = parseRow(lines[0]);
-  return lines.slice(1).map(line => {
-    const cells = parseRow(line);
-    return Object.fromEntries(headers.map((h, i) => [h.trim(), (cells[i] || '').trim()]));
-  });
-}
-
-async function fetchPublicSheetCsv(spreadsheetId, gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`CSV fetch error ${res.status} for gid=${gid}`);
-  return parsePublicCsv(await res.text());
-}
-
-async function fetchChecklistDirect() {
-  const [rawTasks, rawLogs] = await Promise.all([
-    fetchPublicSheetCsv(ERP_CONFIG.CHECKLIST_SHEET_ID, ERP_CONFIG.CHECKLIST_GID_TASKS),
-    fetchPublicSheetCsv(ERP_CONFIG.CHECKLIST_SHEET_ID, ERP_CONFIG.CHECKLIST_GID_LOGS),
-  ]);
-  const tasks = rawTasks.map(r => ({
-    name:    (r['NAME']       || '').trim(),
-    email:   (r['Email']      || '').trim(),
-    dept:    (r['Department'] || '').trim(),
-    task_id: (r['Task ID']    || '').trim(),
-    freq:    (r['Freq']       || '').trim(),
-    task:    (r['Task']       || '').trim(),
-    planned: (r['Planned']    || '').trim(),
-    done_on: (r['Done On']    || '').trim(),
-    status:  (r['Status']     || '').trim().toUpperCase(),
-    remark:  (r['Remark']     || '').trim(),
-  }));
-  const logs = rawLogs.map(r => ({
-    timestamp:   (r['Timestamp']           || '').trim(),
-    uid:         (r['UID']                 || '').trim(),
-    name:        (r['Doer Name']           || '').trim(),
-    email:       (r['Email']               || '').trim(),
-    dept:        (r['Department']          || '').trim(),
-    task_id:     (r['Task ID']             || '').trim(),
-    freq:        (r['Freq']                || '').trim(),
-    task:        (r['Task']                || '').trim(),
-    planned:     (r['Planned']             || '').trim(),
-    status:      (r['Status']              || '').trim().toUpperCase(),
-    mails_sent:  (r['No of Mail Send']     || '').trim(),
-    calls_today: (r['No of Calling Today'] || '').trim(),
-    summary:     (r['Summary']             || '').trim(),
-  }));
-  return { tasks, logs };
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
 // ── DYNAMIC DATA LOADER ────────────────────────────────────────────────────────
 const ERPLoader = (() => {
   let _mode = 'static';
@@ -1534,9 +1525,16 @@ const ERPLoader = (() => {
   async function detectMode() {
     // Try Python backend first
     try {
-      const res = await fetch(ERP_CONFIG.PYTHON_API_BASE + '/api/health', { signal: AbortSignal.timeout(8000) });
+      // Use promise-based timeout instead of signal
+      const fetchPromise = fetch(ERP_CONFIG.PYTHON_API_BASE + '/api/health');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 8000)
+      );
+      const res = await Promise.race([fetchPromise, timeoutPromise]);
       if (res.ok) { _mode = 'python'; console.log('[ERP] Mode: python (API reachable)'); return 'python'; }
-    } catch {}
+    } catch (error) {
+      // Timeout or fetch error - continue to next method
+    }
 
     // Try direct Sheets API
     if (ERP_CONFIG.SHEETS_API_KEY && ERP_CONFIG.SPREADSHEET_ID !== 'YOUR_MAIN_SHEET_ID') {
@@ -1616,15 +1614,9 @@ const ERPLoader = (() => {
     async loadProduction() { return _mode === 'python' ? pythonFetch('/api/production') : sheetsRange(ERP_CONFIG.SPREADSHEET_ID, ERP_CONFIG.TAB_PRODUCTION); },
     async loadDispFms()    { return _mode === 'python' ? pythonFetch('/api/dispfms')    : []; },
     async loadChecklist()  {
-      // Priority 1: Python backend API
-      if (_mode === 'python') {
-        try { return await pythonFetch('/api/checklist'); } catch(e) {
-          console.warn('[Checklist] Python API failed, falling back to direct CSV:', e.message);
-        }
-      }
-      // Priority 2: Direct public CSV fetch (works in all modes — sheet must be publicly shared)
-      console.log('[Checklist] Fetching directly from Google Sheets public CSV...');
-      return await fetchChecklistDirect();
+      return _mode === 'python' 
+        ? pythonFetch('/api/checklist')
+        : { tasks: [], logs: [] };  // In static mode, no data
     },
   };
 })();
@@ -3388,6 +3380,138 @@ function clShowToast(msg, type) {
   t.textContent=msg; t.className='toast show '+(type||'success');
   setTimeout(()=>{ t.className='toast'; }, 3500);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 LEAD TESTING MODULE — Dynamically fetches from Google Sheet API
+// ══════════════════════════════════════════════════════════════════════════════
+
+let leadsAllData = [];
+let leadsCurrentPage = 1;
+const leadsPageSize = 20;
+
+// Auto-load leads when visiting leads page
+(function(){
+  const _originalGo = window.go;
+  window.go = function(id, el, title) {
+    _originalGo(id, el, title);
+    if (id === 'leads' && leadsAllData.length === 0) {
+      leadsLoadData(1);
+    }
+  };
+})();
+
+async function leadsLoadData(page = 1) {
+  const syncBar = document.getElementById('leads-sync-bar');
+  const startTime = performance.now();
+  
+  syncBar.innerHTML = '⟳ Fetching leads from Google Sheet…';
+  document.getElementById('leads-tbody').innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--s400)">Loading…</td></tr>';
+  
+  try {
+    const url = ERP_CONFIG.API_BASE + `/api/leads?page=${page}&pageSize=${leadsPageSize}`;
+    
+    // Use Promise.race for timeout instead of AbortSignal
+    const fetchPromise = fetch(url);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), 8000)
+    );
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
+    if (!response.ok) throw new Error(`API error ${response.status}`);
+    
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || 'Unknown error');
+    
+    leadsAllData = data.leads || [];
+    const pagination = data.pagination || {};
+    leadsCurrentPage = page;
+    
+    const prevBtn = document.getElementById('leads-prev');
+    const nextBtn = document.getElementById('leads-next');
+    prevBtn.disabled = !pagination.hasPrev;
+    nextBtn.disabled = !pagination.hasNext;
+    prevBtn.style.opacity = pagination.hasPrev ? '1' : '0.5';
+    nextBtn.style.opacity = pagination.hasNext ? '1' : '0.5';
+    
+    document.getElementById('leads-pagination').textContent = `Page ${pagination.current} of ${pagination.pages} (${pagination.total} total)`;
+    
+    const hotLeads = leadsAllData.filter(l => parseFloat(l.score) >= 80).length;
+    const warmLeads = leadsAllData.filter(l => parseFloat(l.score) >= 50 && parseFloat(l.score) < 80).length;
+    const coldLeads = leadsAllData.filter(l => parseFloat(l.score) < 50).length;
+    
+    document.getElementById('leads-total').textContent = pagination.total;
+    document.getElementById('leads-hot').textContent = hotLeads;
+    document.getElementById('leads-warm').textContent = warmLeads;
+    document.getElementById('leads-cold').textContent = coldLeads;
+    
+    leadsRenderTable(leadsAllData);
+    
+    const duration = (performance.now() - startTime).toFixed(0);
+    syncBar.innerHTML = `✓ ${leadsAllData.length} leads loaded in ${duration}ms · ${new Date().toLocaleTimeString('en-IN')}`;
+    
+  } catch (error) {
+    console.error('[LEADS API]', error);
+    const errorMsg = error.name === 'AbortError' ? 'Request timeout (>8s)' : error.message;
+    syncBar.innerHTML = `⚠ Error: ${errorMsg}`;
+    document.getElementById('leads-tbody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--r)">Failed to load: ${errorMsg}</td></tr>`;
+  }
+}
+
+function leadsRenderTable(leads) {
+  const tbody = document.getElementById('leads-tbody');
+  
+  if (!leads || leads.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--s400)">No leads found</td></tr>';
+    return;
+  }
+  
+  const fragment = document.createDocumentFragment();
+  
+  leads.forEach(lead => {
+    const row = document.createElement('tr');
+    const score = parseFloat(lead.score || 0);
+    const scoreColor = score >= 80 ? 'var(--g)' : score >= 50 ? 'var(--a)' : 'var(--r)';
+    const scoreBg = score >= 80 ? 'var(--gl)' : score >= 50 ? 'var(--al)' : 'var(--rl)';
+    
+    row.innerHTML = `
+      <td class="mono" style="font-size:10px">${lead.id}</td>
+      <td><strong>${lead.name}</strong></td>
+      <td>${lead.email}</td>
+      <td>${lead.phone}</td>
+      <td title="${lead.company}" style="max-width:120px">${lead.company}</td>
+      <td><span class="pill px">${lead.industry}</span></td>
+      <td><span class="pill pg">${lead.status}</span></td>
+      <td style="font-size:10px;color:var(--s500)">${lead.last_contact}</td>
+      <td><strong style="color:${scoreColor};background:${scoreBg};padding:4px 8px;border-radius:4px;display:inline-block">${score.toFixed(1)}</strong></td>
+      <td style="max-width:150px;font-size:10px" title="${lead.notes}">${lead.notes.substring(0, 30)}${lead.notes.length > 30 ? '…' : ''}</td>
+    `;
+    fragment.appendChild(row);
+  });
+  
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
+}
+
+function leadsSearch(query) {
+  if (!query || !query.trim()) {
+    leadsRenderTable(leadsAllData);
+    return;
+  }
+  
+  const q = query.toLowerCase();
+  const filtered = leadsAllData.filter(lead =>
+    (lead.name || '').toLowerCase().includes(q) ||
+    (lead.email || '').toLowerCase().includes(q) ||
+    (lead.phone || '').toLowerCase().includes(q) ||
+    (lead.company || '').toLowerCase().includes(q) ||
+    (lead.notes || '').toLowerCase().includes(q)
+  );
+  
+  leadsRenderTable(filtered);
+}
+
+// ══════════ END LEAD TESTING MODULE ══════════
+
 </script>
 </body>
 </html>
